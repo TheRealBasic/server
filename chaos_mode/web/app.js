@@ -13,6 +13,9 @@ const trollPanel = document.getElementById('trollPanel');
 const trollActionSelect = document.getElementById('trollActionSelect');
 const trollActionInfo = document.getElementById('trollActionInfo');
 const triggerTrollBtn = document.getElementById('triggerTrollBtn');
+const hudTimer = document.getElementById('hudTimer');
+const hudCurrentEvent = document.getElementById('hudCurrentEvent');
+const hudHistory = document.getElementById('hudHistory');
 
 const resourceName = typeof GetParentResourceName === 'function'
   ? GetParentResourceName()
@@ -23,7 +26,12 @@ const state = {
   players: [],
   trollActions: [],
   trollActionMeta: {},
-  mode: 'chaos'
+  mode: 'chaos',
+  hud: {
+    secondsRemaining: 30,
+    currentEvent: 'Waiting for next event',
+    history: []
+  }
 };
 
 function postNui(name, data = {}) {
@@ -130,6 +138,35 @@ function updateTrollActionInfo() {
   trollActionInfo.textContent = describeMeta(selectedId, meta);
 }
 
+
+function renderHud() {
+  if (hudTimer) {
+    const remaining = Number.isFinite(state.hud.secondsRemaining) ? Math.max(0, Math.floor(state.hud.secondsRemaining)) : 0;
+    hudTimer.textContent = `Next event in: ${remaining}s`;
+  }
+
+  if (hudCurrentEvent) {
+    hudCurrentEvent.textContent = state.hud.currentEvent || 'Waiting for next event';
+  }
+
+  if (hudHistory) {
+    hudHistory.innerHTML = '';
+    const entries = Array.isArray(state.hud.history) ? state.hud.history.slice(0, 4) : [];
+    if (!entries.length) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No previous events';
+      hudHistory.appendChild(empty);
+      return;
+    }
+
+    entries.forEach((entry) => {
+      const item = document.createElement('li');
+      item.textContent = entry;
+      hudHistory.appendChild(item);
+    });
+  }
+}
+
 function setMode(mode) {
   state.mode = mode;
   const trollMode = mode === 'troll';
@@ -166,6 +203,13 @@ window.addEventListener('message', (event) => {
 
   if (data.action === 'setMode') {
     setMode(data.mode === 'troll' ? 'troll' : 'chaos');
+  }
+
+  if (data.action === 'setHudData') {
+    state.hud.secondsRemaining = Number(data.secondsRemaining) || 0;
+    state.hud.currentEvent = typeof data.currentEvent === 'string' ? data.currentEvent : 'Waiting for next event';
+    state.hud.history = Array.isArray(data.history) ? data.history : [];
+    renderHud();
   }
 
   if (data.action === 'setData') {
@@ -220,3 +264,5 @@ document.addEventListener('keydown', async (event) => {
     await postNui('close');
   }
 });
+
+renderHud();

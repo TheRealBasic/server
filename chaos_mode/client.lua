@@ -56,6 +56,16 @@ local function closeTrollMenu()
     setTrollMenuState(false)
 end
 
+
+local function requestHudState()
+    TriggerServerEvent('chaos_mode:requestHudState')
+end
+
+CreateThread(function()
+    Wait(1500)
+    requestHudState()
+end)
+
 local function loadModel(model)
     if not IsModelInCdimage(model) then return false end
     RequestModel(model)
@@ -1042,6 +1052,17 @@ RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
     if #skippedEvents > 0 then
         notify(('Skipped overlapping effect(s): %s'):format(table.concat(skippedEvents, ', ')))
     end
+end)
+
+
+RegisterNetEvent('chaos_mode:updateHud', function(payload)
+    payload = payload or {}
+    SendNUIMessage({
+        action = 'setHudData',
+        secondsRemaining = payload.secondsRemaining or 0,
+        currentEvent = payload.currentEvent or 'Waiting for next event',
+        history = payload.history or {}
+    })
 end)
 
 RegisterNetEvent('chaos_mode:menuData', function(payload)

@@ -113,6 +113,36 @@ end
 
 local recentEventHistory = {}
 local recentHistoryWindow = math.max(0, math.floor(tonumber(Config.EventRecentHistoryWindow) or 0))
+local hudCurrentEvent = 'Waiting for next event'
+local hudPreviousEvents = {}
+local hudSecondsRemaining = math.max(1, math.floor((Config.MinIntervalMs or 30000) / 1000))
+
+local function cloneArray(source)
+    local copy = {}
+    for i, value in ipairs(source) do
+        copy[i] = value
+    end
+    return copy
+end
+
+local function pushHudHistory(entry)
+    if type(entry) ~= 'string' or entry == '' or entry == 'Waiting for next event' then
+        return
+    end
+
+    table.insert(hudPreviousEvents, 1, entry)
+    while #hudPreviousEvents > 4 do
+        table.remove(hudPreviousEvents)
+    end
+end
+
+local function broadcastHudState(target)
+    TriggerClientEvent('chaos_mode:updateHud', target or -1, {
+        secondsRemaining = hudSecondsRemaining,
+        currentEvent = hudCurrentEvent,
+        history = cloneArray(hudPreviousEvents)
+    })
+end
 
 local function getEventWeight(eventName)
     local configuredWeight = Config.EventWeights and Config.EventWeights[eventName]
@@ -284,7 +314,11 @@ end
 local function triggerChaosEvent(eventNames)
     recordEventHistory(eventNames)
     TriggerClientEvent('chaos_mode:runEvent', -1, eventNames, createEventData())
+    local newCurrentEvent = table.concat(eventNames, ' + ')
+    pushHudHistory(hudCurrentEvent)
+    hudCurrentEvent = newCurrentEvent
     print(('[chaos_mode] Triggered event(s): %s | history=[%s]'):format(table.concat(eventNames, ', '), historyToString()))
+    broadcastHudState()
 end
 
 local function eventExists(eventName)
@@ -321,8 +355,26 @@ CreateThread(function()
 
     while true do
         if chaosEnabled then
-            Wait(randomBetween(Config.MinIntervalMs, Config.MaxIntervalMs))
+            local waitMs = randomBetween(Config.MinIntervalMs, Config.MaxIntervalMs)
+            local elapsedMs = 0
+            local announcedSeconds = -1
+
+            while chaosEnabled and elapsedMs < waitMs do
+                local remainingMs = waitMs - elapsedMs
+                local remainingSeconds = math.max(0, math.ceil(remainingMs / 1000))
+                if remainingSeconds ~= announcedSeconds then
+                    hudSecondsRemaining = remainingSeconds
+                    announcedSeconds = remainingSeconds
+                    broadcastHudState()
+                end
+
+                local stepMs = math.min(1000, remainingMs)
+                Wait(stepMs)
+                elapsedMs = elapsedMs + stepMs
+            end
+
             if chaosEnabled then
+                hudSecondsRemaining = math.max(1, math.ceil(waitMs / 1000))
                 if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
                     triggerChaosEvent(chooseComboEvent())
                 else
@@ -343,6 +395,10 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
         trollActions = trollActions,
         trollActionMeta = Config.TrollActionMeta or {}
     })
+end)
+
+RegisterNetEvent('chaos_mode:requestHudState', function()
+    broadcastHudState(source)
 end)
 
 local function trollActionExists(actionName)
