@@ -85,6 +85,15 @@ button {
   margin-bottom: 8px;
 }
 
+.selector-info {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgba(220, 220, 230, 0.8);
+  line-height: 1.35;
+  min-height: 16px;
+}
+
+
 .player-list {
   margin-top: 8px;
   max-height: 170px;
