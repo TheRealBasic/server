@@ -11,7 +11,27 @@ Config.EventPool = {
     'hostile_npcs',
     'spawn_random_objects',
     'low_gravity_burst',
-    'ragdoll_wave'
+    'ragdoll_wave',
+    'drunk_vision',
+    'speed_burst',
+    'super_jump_burst',
+    'explosive_ammo_burst',
+    'explosive_melee_burst',
+    'fire_ammo_burst',
+    'rapid_fire_burst',
+    'random_wanted_level',
+    'armor_refill',
+    'health_boost',
+    'health_drain',
+    'teleport_shuffle',
+    'blackout_burst',
+    'random_time_shift',
+    'camera_shake_burst',
+    'random_weapon',
+    'vehicle_slip',
+    'vehicle_boost',
+    'random_screen_filter',
+    'no_hud_burst'
 }
 
 Config.WeatherTypes = {
