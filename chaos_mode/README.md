@@ -22,3 +22,25 @@ A lightweight FiveM chaos addon for sandbox servers.
 
 ## Config
 Edit `config.lua` to tune event pool, timing, spawn counts, weather set, and menu keybind.
+
+## Event weight and anti-repeat tuning
+Use these optional settings to make event selection feel less repetitive while still allowing fine-grained biasing:
+
+- `Config.EventWeights`
+  - Table keyed by event name.
+  - Default weight is `1.0` for any event not listed.
+  - Higher values make events appear more often (for example `2.0`).
+  - Lower values make events rarer (for example `0.5`).
+  - `0` disables an event for weighted random picks without removing it from `EventPool`.
+
+- `Config.EventRecentHistoryWindow`
+  - Number of most-recently-triggered events to keep in rolling history.
+  - Repeated events inside this history get automatically deprioritized.
+  - `0` disables anti-repeat behavior.
+
+### Practical balancing workflow
+1. Start with default weights and set `EventRecentHistoryWindow` to around `5-8`.
+2. Run the server and observe debug logs from `server.lua` (single and combo picks include base/effective weight and history).
+3. Reduce noisy or overbearing events to `0.4-0.8`.
+4. Raise underrepresented "fun" events to `1.2-1.8`.
+5. If repeats still feel common, increase the history window by 1-2 and re-test.

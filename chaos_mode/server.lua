@@ -51,6 +51,30 @@ local function validateConfig()
         configError('ComboChance', 'must be a number between 0 and 100')
     end
 
+    if Config.EventRecentHistoryWindow ~= nil then
+        if type(Config.EventRecentHistoryWindow) ~= 'number' then
+            configError('EventRecentHistoryWindow', 'must be a number when set')
+        elseif Config.EventRecentHistoryWindow < 0 then
+            configError('EventRecentHistoryWindow', 'must be greater than or equal to 0')
+        end
+    end
+
+    if Config.EventWeights ~= nil and type(Config.EventWeights) ~= 'table' then
+        configError('EventWeights', 'must be a table when set')
+    elseif type(Config.EventWeights) == 'table' then
+        for eventName, eventWeight in pairs(Config.EventWeights) do
+            if type(eventName) ~= 'string' then
+                configError('EventWeights', 'keys must be event name strings')
+                break
+            end
+
+            local numericWeight = tonumber(eventWeight)
+            if not numericWeight or numericWeight < 0 then
+                configError(('EventWeights.%s'):format(eventName), 'must be a number greater than or equal to 0')
+            end
+        end
+    end
+
     if type(Config.WeatherTypes) ~= 'table' or #Config.WeatherTypes == 0 then
         configError('WeatherTypes', 'must be a non-empty array')
     end
@@ -87,8 +111,120 @@ local function randomFrom(list)
     return list[randomBetween(1, #list)]
 end
 
-local function chooseEvent()
-    return randomFrom(Config.EventPool)
+local recentEventHistory = {}
+local recentHistoryWindow = math.max(0, math.floor(tonumber(Config.EventRecentHistoryWindow) or 0))
+
+local function getEventWeight(eventName)
+    local configuredWeight = Config.EventWeights and Config.EventWeights[eventName]
+    if configuredWeight == nil then
+        return 1
+    end
+
+    local numericWeight = tonumber(configuredWeight)
+    if not numericWeight or numericWeight < 0 then
+        return 0
+    end
+
+    return numericWeight
+end
+
+local function countRecentOccurrences(eventName)
+    local occurrences = 0
+    for _, recentEventName in ipairs(recentEventHistory) do
+        if recentEventName == eventName then
+            occurrences = occurrences + 1
+        end
+    end
+    return occurrences
+end
+
+local function historyToString()
+    if #recentEventHistory == 0 then
+        return 'none'
+    end
+
+    return table.concat(recentEventHistory, ' -> ')
+end
+
+local function recordEventHistory(eventNames)
+    if recentHistoryWindow <= 0 then
+        return
+    end
+
+    for _, eventName in ipairs(eventNames) do
+        recentEventHistory[#recentEventHistory + 1] = eventName
+        while #recentEventHistory > recentHistoryWindow do
+            table.remove(recentEventHistory, 1)
+        end
+    end
+end
+
+local function pickWeightedEvent(candidates, contextLabel)
+    local weightedCandidates = {}
+    local totalWeight = 0
+
+    for _, eventName in ipairs(candidates) do
+        local baseWeight = getEventWeight(eventName)
+        local recentOccurrences = countRecentOccurrences(eventName)
+        local effectiveWeight = baseWeight
+
+        if recentOccurrences > 0 then
+            effectiveWeight = baseWeight / (recentOccurrences + 1)
+        end
+
+        if effectiveWeight > 0 then
+            weightedCandidates[#weightedCandidates + 1] = {
+                name = eventName,
+                baseWeight = baseWeight,
+                effectiveWeight = effectiveWeight,
+                recentOccurrences = recentOccurrences
+            }
+            totalWeight = totalWeight + effectiveWeight
+        end
+    end
+
+    if #weightedCandidates == 0 then
+        return nil
+    end
+
+    local roll = math.random() * totalWeight
+    local runningWeight = 0
+    local chosen = weightedCandidates[#weightedCandidates]
+
+    for _, candidate in ipairs(weightedCandidates) do
+        runningWeight = runningWeight + candidate.effectiveWeight
+        if roll <= runningWeight then
+            chosen = candidate
+            break
+        end
+    end
+
+    print(('[chaos_mode] %s pick="%s" baseWeight=%.2f effectiveWeight=%.2f recentHits=%d history=[%s]'):format(
+        contextLabel,
+        chosen.name,
+        chosen.baseWeight,
+        chosen.effectiveWeight,
+        chosen.recentOccurrences,
+        historyToString()
+    ))
+
+    return chosen.name
+end
+
+local function chooseEvent(candidates, contextLabel)
+    local eventCandidates = candidates or Config.EventPool
+    local chosenEvent = pickWeightedEvent(eventCandidates, contextLabel or 'primary')
+    if chosenEvent then
+        return chosenEvent
+    end
+
+    local fallback = randomFrom(eventCandidates)
+    print(('[chaos_mode] %s fallback pick="%s" (no positive weights) history=[%s]'):format(
+        contextLabel or 'primary',
+        fallback,
+        historyToString()
+    ))
+    return fallback
 end
 
 local function getEventMeta(eventName)
@@ -116,7 +252,7 @@ local function eventsConflict(firstEvent, secondEvent)
 end
 
 local function chooseComboEvent()
-    local primaryEvent = chooseEvent()
+    local primaryEvent = chooseEvent(Config.EventPool, 'combo-primary')
     local candidates = {}
     for _, eventName in ipairs(Config.EventPool) do
         if not eventsConflict(primaryEvent, eventName) then
@@ -128,7 +264,8 @@ local function chooseComboEvent()
         return { primaryEvent }
     end
 
-    return { primaryEvent, randomFrom(candidates) }
+    local secondaryEvent = chooseEvent(candidates, 'combo-secondary')
+    return { primaryEvent, secondaryEvent }
 end
 
 local function createEventData()
@@ -145,8 +282,9 @@ local function createEventData()
 end
 
 local function triggerChaosEvent(eventNames)
+    recordEventHistory(eventNames)
     TriggerClientEvent('chaos_mode:runEvent', -1, eventNames, createEventData())
-    print(('[chaos_mode] Triggered event(s): %s'):format(table.concat(eventNames, ', ')))
+    print(('[chaos_mode] Triggered event(s): %s | history=[%s]'):format(table.concat(eventNames, ', '), historyToString()))
 end
 
 local function eventExists(eventName)
@@ -188,7 +326,7 @@ CreateThread(function()
                 if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
                     triggerChaosEvent(chooseComboEvent())
                 else
-                    triggerChaosEvent({ chooseEvent() })
+                    triggerChaosEvent({ chooseEvent(Config.EventPool, 'single') })
                 end
             end
         else
@@ -343,6 +481,6 @@ RegisterCommand(Config.Commands.TriggerNow, function(source)
     if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
         triggerChaosEvent(chooseComboEvent())
     else
-        triggerChaosEvent({ chooseEvent() })
+        triggerChaosEvent({ chooseEvent(Config.EventPool, 'single') })
     end
 end, true)

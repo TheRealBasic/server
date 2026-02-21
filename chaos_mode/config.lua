@@ -8,6 +8,15 @@ Config.ObjectCleanupMs = 30000
 
 Config.ComboEnabled = true
 Config.ComboChance = 30 -- percent chance to trigger two events at once
+Config.EventRecentHistoryWindow = 6 -- number of recently triggered events used to lower repeat odds
+Config.EventWeights = {
+    -- Optional per-event base weights.
+    -- Omitted events default to weight 1.0.
+    -- Set below 1.0 to make an event rarer, or above 1.0 to make it more common.
+    -- Example:
+    -- tsunami_surge = 0.5,
+    -- random_weapon = 1.5
+}
 
 Config.TrollActionMeta = {
     launch_up = {
