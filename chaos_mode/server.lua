@@ -43,6 +43,209 @@ local trollActions = {
 
 
 local funCommandUsage = {}
+local placedProps = {}
+local playerPropCounts = {}
+
+local function getBuildToolConfig()
+    return type(Config.BuildTool) == 'table' and Config.BuildTool or {}
+end
+
+local function getBuildAllowedModelSet()
+    local modelSet = {}
+    local catalog = type(Config.BuildToolModelCatalog) == 'table' and Config.BuildToolModelCatalog or {}
+    local buildConfig = getBuildToolConfig()
+    local groups = buildConfig.AllowedModels
+
+    if type(groups) ~= 'table' then
+        return modelSet
+    end
+
+    for _, group in pairs(groups) do
+        local entries = type(group) == 'table' and group.entries or nil
+        if type(entries) == 'table' then
+            for _, entry in ipairs(entries) do
+                if type(entry) == 'table' and type(entry.id) == 'string' then
+                    local catalogEntry = catalog[entry.id]
+                    if type(catalogEntry) == 'table' and type(catalogEntry.model) == 'string' then
+                        modelSet[joaat(catalogEntry.model)] = true
+                    end
+                end
+            end
+        end
+    end
+
+    return modelSet
+end
+
+local function isBuildAdmin(src)
+    local buildConfig = getBuildToolConfig()
+    local ace = tostring(buildConfig.AdminAce or 'chaos_mode.build_admin')
+    return src == 0 or IsPlayerAceAllowed(src, ace)
+end
+
+local function sendBuildMessage(src, message)
+    if src == 0 then
+        print('[build] ' .. message)
+        return
+    end
+
+    TriggerClientEvent('chat:addMessage', src, {
+        args = { '^3Build', message }
+    })
+end
+
+local function getPlayerPropCount(src)
+    return playerPropCounts[src] or 0
+end
+
+local function adjustPlayerPropCount(src, delta)
+    local current = getPlayerPropCount(src)
+    local updated = current + delta
+    if updated <= 0 then
+        playerPropCounts[src] = nil
+    else
+        playerPropCounts[src] = updated
+    end
+end
+
+local function countPlacedProps()
+    local count = 0
+    for _ in pairs(placedProps) do
+        count = count + 1
+    end
+    return count
+end
+
+local function sanitizeRotation(value)
+    local numeric = tonumber(value)
+    if not numeric then
+        return nil
+    end
+
+    while numeric > 180.0 do
+        numeric = numeric - 360.0
+    end
+
+    while numeric < -180.0 do
+        numeric = numeric + 360.0
+    end
+
+    return numeric
+end
+
+local function getNumericVector3(input)
+    if type(input) ~= 'table' then
+        return nil
+    end
+
+    local x = tonumber(input.x)
+    local y = tonumber(input.y)
+    local z = tonumber(input.z)
+    if not x or not y or not z then
+        return nil
+    end
+
+    return { x = x, y = y, z = z }
+end
+
+local function isPositionInBounds(position)
+    local bounds = getBuildToolConfig().Bounds
+    if type(bounds) ~= 'table' then
+        return true
+    end
+
+    local min = getNumericVector3(bounds.min)
+    local max = getNumericVector3(bounds.max)
+    if not min or not max then
+        return true
+    end
+
+    return position.x >= math.min(min.x, max.x)
+        and position.x <= math.max(min.x, max.x)
+        and position.y >= math.min(min.y, max.y)
+        and position.y <= math.max(min.y, max.y)
+        and position.z >= math.min(min.z, max.z)
+        and position.z <= math.max(min.z, max.z)
+end
+
+local function isRotationInBounds(pitch, roll, heading)
+    local rotationLimits = getBuildToolConfig().RotationLimits
+    if type(rotationLimits) ~= 'table' then
+        return true
+    end
+
+    local function within(value, range)
+        if type(range) ~= 'table' then
+            return true
+        end
+        local minValue = tonumber(range.min)
+        local maxValue = tonumber(range.max)
+        if not minValue or not maxValue then
+            return true
+        end
+        return value >= math.min(minValue, maxValue) and value <= math.max(minValue, maxValue)
+    end
+
+    return within(pitch, rotationLimits.pitch) and within(roll, rotationLimits.roll) and within(heading, rotationLimits.heading)
+end
+
+local function removePlacedProp(netId, reason)
+    local propData = placedProps[netId]
+    if not propData then
+        return false
+    end
+
+    local entity = propData.entity
+    if entity and DoesEntityExist(entity) then
+        DeleteEntity(entity)
+    end
+
+    placedProps[netId] = nil
+    adjustPlayerPropCount(propData.owner, -1)
+
+    TriggerClientEvent('chaos_mode:propRemoved', -1, {
+        netId = netId,
+        reason = reason or 'removed'
+    })
+
+    return true
+end
+
+local function cleanupPlayerProps(src, reason)
+    local targets = {}
+    for netId, propData in pairs(placedProps) do
+        if propData.owner == src then
+            targets[#targets + 1] = netId
+        end
+    end
+
+    for _, netId in ipairs(targets) do
+        removePlacedProp(netId, reason)
+    end
+
+    playerPropCounts[src] = nil
+end
+
+local function getPlacedPropSnapshot()
+    local snapshot = {}
+    for netId, propData in pairs(placedProps) do
+        snapshot[#snapshot + 1] = {
+            netId = netId,
+            owner = propData.owner,
+            propId = propData.propId,
+            model = propData.model,
+            position = propData.position,
+            heading = propData.heading,
+            pitch = propData.pitch,
+            roll = propData.roll
+        }
+    end
+    return snapshot
+end
+
+AddEventHandler('playerDropped', function()
+    cleanupPlayerProps(source, 'owner_disconnected')
+end)
 
 local function trimWhitespace(value)
     return (value:gsub('^%s+', ''):gsub('%s+$', ''))
@@ -548,12 +751,212 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
         trollActions = trollActions,
         trollActionMeta = Config.TrollActionMeta or {},
         eventMeta = Config.EventMeta or {},
-        eventToggles = getEventToggleMap()
+        eventToggles = getEventToggleMap(),
+        buildProps = getPlacedPropSnapshot()
     })
 end)
 
 RegisterNetEvent('chaos_mode:requestHudState', function()
     broadcastHudState(source)
+end)
+
+RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
+    local src = source
+    local buildConfig = getBuildToolConfig()
+
+    if buildConfig.Enabled == false then
+        sendBuildMessage(src, 'Build mode is disabled by server configuration.')
+        return
+    end
+
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local model = tonumber(payload.model)
+    local position = getNumericVector3(payload.position)
+    local heading = sanitizeRotation(payload.heading)
+    local pitch = sanitizeRotation(payload.pitch)
+    local roll = sanitizeRotation(payload.roll)
+
+    if not model or not position or not heading or not pitch or not roll then
+        sendBuildMessage(src, 'Invalid prop placement data.')
+        return
+    end
+
+    local allowedModels = getBuildAllowedModelSet()
+    if not allowedModels[model] then
+        sendBuildMessage(src, 'That prop model is not allowed.')
+        return
+    end
+
+    local maxPerPlayer = math.max(1, math.floor(tonumber(buildConfig.MaxPropsPerPlayer) or 30))
+    local maxGlobal = math.max(1, math.floor(tonumber(buildConfig.MaxPropsGlobal) or 300))
+    if getPlayerPropCount(src) >= maxPerPlayer then
+        sendBuildMessage(src, ('Prop limit reached (%d per player).'):format(maxPerPlayer))
+        return
+    end
+
+    if countPlacedProps() >= maxGlobal then
+        sendBuildMessage(src, ('Global prop limit reached (%d).'):format(maxGlobal))
+        return
+    end
+
+    if not isPositionInBounds(position) then
+        sendBuildMessage(src, 'Placement position is outside allowed bounds.')
+        return
+    end
+
+    if not isRotationInBounds(pitch, roll, heading) then
+        sendBuildMessage(src, 'Rotation exceeds server limits.')
+        return
+    end
+
+    local object = CreateObjectNoOffset(model, position.x, position.y, position.z, true, true, false)
+    if not object or object == 0 or not DoesEntityExist(object) then
+        sendBuildMessage(src, 'Failed to create networked prop.')
+        return
+    end
+
+    SetEntityHeading(object, heading)
+    SetEntityRotation(object, pitch, roll, heading, 2, true)
+    FreezeEntityPosition(object, true)
+
+    local netId = NetworkGetNetworkIdFromEntity(object)
+    if not netId or netId <= 0 then
+        DeleteEntity(object)
+        sendBuildMessage(src, 'Failed to register networked prop.')
+        return
+    end
+
+    placedProps[netId] = {
+        netId = netId,
+        entity = object,
+        owner = src,
+        model = model,
+        propId = tostring(payload.propId or ''),
+        position = position,
+        heading = heading,
+        pitch = pitch,
+        roll = roll,
+        createdAt = os.time()
+    }
+    adjustPlayerPropCount(src, 1)
+
+    TriggerClientEvent('chaos_mode:propSpawned', -1, {
+        netId = netId,
+        owner = src,
+        propId = tostring(payload.propId or ''),
+        model = model,
+        position = position,
+        heading = heading,
+        pitch = pitch,
+        roll = roll
+    })
+end)
+
+RegisterNetEvent('chaos_mode:removePropRequest', function(payload)
+    local src = source
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local netId = tonumber(payload.netId)
+    if not netId then
+        return
+    end
+
+    local propData = placedProps[netId]
+    if not propData then
+        sendBuildMessage(src, 'Prop no longer exists.')
+        return
+    end
+
+    if propData.owner ~= src and not isBuildAdmin(src) then
+        sendBuildMessage(src, 'You do not own that prop.')
+        return
+    end
+
+    removePlacedProp(netId, 'manual_remove')
+end)
+
+RegisterNetEvent('chaos_mode:editPropRequest', function(payload)
+    local src = source
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local netId = tonumber(payload.netId)
+    if not netId then
+        return
+    end
+
+    local propData = placedProps[netId]
+    if not propData then
+        sendBuildMessage(src, 'Prop no longer exists.')
+        return
+    end
+
+    if propData.owner ~= src and not isBuildAdmin(src) then
+        sendBuildMessage(src, 'You do not own that prop.')
+        return
+    end
+
+    local newPosition = payload.position and getNumericVector3(payload.position) or propData.position
+    local newHeading = payload.heading ~= nil and sanitizeRotation(payload.heading) or propData.heading
+    local newPitch = payload.pitch ~= nil and sanitizeRotation(payload.pitch) or propData.pitch
+    local newRoll = payload.roll ~= nil and sanitizeRotation(payload.roll) or propData.roll
+
+    if not newPosition or not newHeading or not newPitch or not newRoll then
+        sendBuildMessage(src, 'Invalid prop edit values.')
+        return
+    end
+
+    if not isPositionInBounds(newPosition) then
+        sendBuildMessage(src, 'New position is outside allowed bounds.')
+        return
+    end
+
+    if not isRotationInBounds(newPitch, newRoll, newHeading) then
+        sendBuildMessage(src, 'New rotation exceeds server limits.')
+        return
+    end
+
+    local entity = propData.entity
+    if not entity or not DoesEntityExist(entity) then
+        entity = NetworkGetEntityFromNetworkId(netId)
+    end
+
+    if not entity or entity == 0 or not DoesEntityExist(entity) then
+        placedProps[netId] = nil
+        adjustPlayerPropCount(propData.owner, -1)
+        sendBuildMessage(src, 'Unable to edit prop because entity no longer exists.')
+        TriggerClientEvent('chaos_mode:propRemoved', -1, { netId = netId, reason = 'desync_cleanup' })
+        return
+    end
+
+    SetEntityCoordsNoOffset(entity, newPosition.x, newPosition.y, newPosition.z, false, false, false)
+    SetEntityHeading(entity, newHeading)
+    SetEntityRotation(entity, newPitch, newRoll, newHeading, 2, true)
+    FreezeEntityPosition(entity, true)
+
+    propData.entity = entity
+    propData.position = newPosition
+    propData.heading = newHeading
+    propData.pitch = newPitch
+    propData.roll = newRoll
+
+    TriggerClientEvent('chaos_mode:propSpawned', -1, {
+        netId = netId,
+        owner = propData.owner,
+        propId = propData.propId,
+        model = propData.model,
+        position = newPosition,
+        heading = newHeading,
+        pitch = newPitch,
+        roll = newRoll,
+        edited = true
+    })
 end)
 
 
