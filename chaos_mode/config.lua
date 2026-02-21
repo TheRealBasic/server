@@ -63,7 +63,9 @@ Config.EventPool = {
     'slow_motion_burst',
     'vehicle_jump',
     'confused_inputs',
-    'cinematic_burst'
+    'cinematic_burst',
+    'wrecking_punch',
+    'tsunami_surge'
 }
 
 Config.EventCompatibility = {
@@ -121,7 +123,9 @@ Config.EventCompatibility = {
     slow_motion_burst = { effectKey = 'world_lighting', durationMs = 6000 },
     vehicle_jump = {},
     confused_inputs = { effectKey = 'ui_modifier', durationMs = 9000 },
-    cinematic_burst = { effectKey = 'camera_motion', durationMs = 12000 }
+    cinematic_burst = { effectKey = 'camera_motion', durationMs = 12000 },
+    wrecking_punch = { effectKey = 'melee_modifier', durationMs = 15000, blacklist = { forced_melee = true, pacifist_mode = true } },
+    tsunami_surge = { effectKey = 'water_modifier', durationMs = 20000, blacklist = { chaos_fog = true, weather_shift = true } }
 }
 
 Config.WeatherTypes = {

@@ -792,6 +792,50 @@ local function cinematic_burst()
     ) then end
 end
 
+
+local function wrecking_punch()
+    if withTimedEffect('wrecking_punch', 15000,
+        function()
+            notify('Wrecking punch enabled for 15s')
+            SetCurrentPedWeapon(PlayerPedId(), `WEAPON_UNARMED`, true)
+        end,
+        function()
+            local playerId = PlayerId()
+            local ped = PlayerPedId()
+            SetSuperJumpThisFrame(playerId)
+            SetExplosiveMeleeThisFrame(playerId)
+            if IsPedInAnyVehicle(ped, false) then
+                local vehicle = GetVehiclePedIsIn(ped, false)
+                SetVehicleForwardSpeed(vehicle, GetEntitySpeed(vehicle) + 8.0)
+            end
+        end,
+        nil,
+        0
+    ) then end
+end
+
+local function tsunami_surge()
+    if withTimedEffect('tsunami_surge', 20000,
+        function()
+            notify('Tsunami surge! Massive waves for 20s')
+            SetWeatherTypeOvertimePersist('THUNDER', 3.0)
+            SetWavesIntensity(4.0)
+            SetWindSpeed(12.0)
+        end,
+        function()
+            ShakeGameplayCam('LARGE_EXPLOSION_SHAKE', 0.2)
+        end,
+        function()
+            SetWavesIntensity(1.0)
+            SetWindSpeed(0.0)
+            StopGameplayCamShaking(true)
+            ClearWeatherTypePersist()
+            ClearOverrideWeather()
+        end,
+        600
+    ) then end
+end
+
 local function resetChaosState()
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
@@ -810,6 +854,8 @@ local function resetChaosState()
     SetFakeWantedLevel(0)
     ResetPedMovementClipset(playerPed, 0.5)
     SetCinematicModeActive(false)
+    SetWavesIntensity(1.0)
+    SetWindSpeed(0.0)
 
     lowGravityActive = false
 
@@ -873,7 +919,9 @@ local eventHandlers = {
     slow_motion_burst = slow_motion_burst,
     vehicle_jump = vehicle_jump,
     confused_inputs = confused_inputs,
-    cinematic_burst = cinematic_burst
+    cinematic_burst = cinematic_burst,
+    wrecking_punch = wrecking_punch,
+    tsunami_surge = tsunami_surge
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
