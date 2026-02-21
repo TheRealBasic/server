@@ -9,6 +9,7 @@ A lightweight FiveM chaos addon for sandbox servers.
 - Hostile NPC rebellion waves
 - Random prop storms around players
 - Expanded movement, combat, camera, HUD, vehicle, world, and control disruption effects
+- **NEW: Singularity Vortex** that drags nearby vehicles and NPCs into a violent mini black hole around each player
 - In-game event trigger menu (default key: `F9`) with targeting for all players or selected lobby players
 
 ## Install

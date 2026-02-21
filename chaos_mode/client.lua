@@ -1250,6 +1250,62 @@ local function apocalypse_sky()
     ) then end
 end
 
+
+local function singularity_vortex()
+    if withTimedEffect('singularity_vortex', 12000,
+        function()
+            notify('Singularity vortex: reality is collapsing!')
+            ShakeGameplayCam('SKY_DIVING_SHAKE', 0.65)
+            AnimpostfxPlay('FocusIn', 0, true)
+        end,
+        function()
+            local playerPed = PlayerPedId()
+            local center = GetEntityCoords(playerPed)
+            local nearbyVehicles = GetGamePool('CVehicle')
+            local maxPullDistance = 85.0
+
+            for i = 1, #nearbyVehicles do
+                local entity = nearbyVehicles[i]
+                if DoesEntityExist(entity) then
+                    local entityCoords = GetEntityCoords(entity)
+                    local delta = center - entityCoords
+                    local distance = #(delta)
+                    if distance > 4.0 and distance < maxPullDistance then
+                        local pullStrength = math.max(7.5, ((maxPullDistance - distance) / maxPullDistance) * 32.0)
+                        local nx = delta.x / distance
+                        local ny = delta.y / distance
+                        local nz = ((delta.z + 1.2) / distance)
+                        ApplyForceToEntity(entity, 1, nx * pullStrength, ny * pullStrength, nz * (pullStrength * 0.75), 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+                    end
+                end
+            end
+
+            local nearbyPeds = GetGamePool('CPed')
+            for i = 1, #nearbyPeds do
+                local ped = nearbyPeds[i]
+                if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) then
+                    local pedCoords = GetEntityCoords(ped)
+                    local delta = center - pedCoords
+                    local distance = #(delta)
+                    if distance > 2.5 and distance < 55.0 then
+                        local nx = delta.x / distance
+                        local ny = delta.y / distance
+                        local nz = ((delta.z + 0.8) / distance)
+                        local pullStrength = math.max(4.0, ((55.0 - distance) / 55.0) * 14.0)
+                        ApplyForceToEntity(ped, 1, nx * pullStrength, ny * pullStrength, nz * (pullStrength * 0.55), 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+                    end
+                end
+            end
+        end,
+        function()
+            AnimpostfxStop('FocusIn')
+            StopGameplayCamShaking(true)
+            notify('Singularity stabilized... for now.')
+        end,
+        100
+    ) then end
+end
+
 local function resetChaosState()
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
@@ -1463,6 +1519,7 @@ local eventHandlers = {
     blimp_shadow = blimp_shadow,
     rogue_wave = rogue_wave,
     apocalypse_sky = apocalypse_sky,
+    singularity_vortex = singularity_vortex,
     banana_peel_panic = slippery_feet,
     disco_inferno = dance_fever,
     yoink_gun_lottery = random_weapon,
