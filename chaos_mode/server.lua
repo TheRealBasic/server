@@ -23,7 +23,22 @@ local trollActions = {
     'weapon_jam',
     'yeet_sideways',
     'clown_horn',
-    'sudden_brake'
+    'sudden_brake',
+    'banana_spin',
+    'noodle_legs',
+    'sneeze_nudge',
+    'confetti_pop',
+    'radio_scramble',
+    'map_shuffle',
+    'brake_tap',
+    'tiny_bounce',
+    'butterhands',
+    'compass_flip',
+    'gravity_glitch',
+    'dance_loop',
+    'shoe_glue',
+    'hiccup_boost',
+    'phantom_honk'
 }
 
 

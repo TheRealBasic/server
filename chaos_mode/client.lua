@@ -1945,6 +1945,141 @@ local trollHandlers = {
         else
             notify('TROLL: sudden brake missed')
         end
+    end,
+    banana_spin = function()
+        notify('TROLL: banana spin')
+        local ped = PlayerPedId()
+        ApplyForceToEntity(ped, 1, 0.0, 0.0, 1.4, 0.0, 0.0, 7.5, 0, false, true, true, false, true)
+    end,
+    noodle_legs = function()
+        withTimedEffect('troll_noodle_legs', 8000,
+            function()
+                notify('TROLL: noodle legs')
+                SetPedMoveRateOverride(PlayerPedId(), 0.6)
+            end,
+            nil,
+            function()
+                SetPedMoveRateOverride(PlayerPedId(), 1.0)
+            end
+        )
+    end,
+    sneeze_nudge = function()
+        notify('TROLL: achoo!')
+        local ped = PlayerPedId()
+        local forward = GetEntityForwardVector(ped)
+        ApplyForceToEntity(ped, 1, forward.x * 4.0, forward.y * 4.0, 0.9, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    end,
+    confetti_pop = function()
+        notify('TROLL: confetti pop')
+        local coords = GetEntityCoords(PlayerPedId())
+        AddExplosion(coords.x + 1.5, coords.y, coords.z, 38, 0.0, true, false, 0.0)
+        AddExplosion(coords.x - 1.5, coords.y, coords.z, 38, 0.0, true, false, 0.0)
+    end,
+    radio_scramble = function()
+        withTimedEffect('troll_radio_scramble', 6000,
+            function() notify('TROLL: radio scramble') end,
+            function()
+                local ped = PlayerPedId()
+                if IsPedInAnyVehicle(ped, false) then
+                    local vehicle = GetVehiclePedIsIn(ped, false)
+                    SetVehRadioStation(vehicle, 'RADIO_OFF')
+                    SetRadioToStationName('RADIO_11_TALK_02')
+                end
+            end,
+            nil,
+            850
+        )
+    end,
+    map_shuffle = function()
+        notify('TROLL: map shuffle')
+        local coords = GetEntityCoords(PlayerPedId())
+        local offsetX = math.random(-250, 250) + 0.0
+        local offsetY = math.random(-250, 250) + 0.0
+        SetNewWaypoint(coords.x + offsetX, coords.y + offsetY)
+    end,
+    brake_tap = function()
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            notify('TROLL: brake tap')
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            SetVehicleForwardSpeed(vehicle, GetEntitySpeed(vehicle) * 0.35)
+        else
+            notify('TROLL: brake tap missed')
+        end
+    end,
+    tiny_bounce = function()
+        notify('TROLL: tiny bounce')
+        local ped = PlayerPedId()
+        SetEntityVelocity(ped, 0.0, 0.0, 5.0)
+    end,
+    butterhands = function()
+        notify('TROLL: butterhands')
+        local ped = PlayerPedId()
+        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+    end,
+    compass_flip = function()
+        notify('TROLL: compass flip')
+        SetGameplayCamRelativeHeading(180.0)
+    end,
+    gravity_glitch = function()
+        withTimedEffect('troll_gravity_glitch', 4000,
+            function()
+                notify('TROLL: gravity glitch')
+                SetEntityHasGravity(PlayerPedId(), false)
+            end,
+            nil,
+            function()
+                SetEntityHasGravity(PlayerPedId(), true)
+            end
+        )
+    end,
+    dance_loop = function()
+        withTimedEffect('troll_dance_loop', 5000,
+            function()
+                notify('TROLL: dance loop')
+                TaskStartScenarioInPlace(PlayerPedId(), 'WORLD_HUMAN_PARTYING', 0, true)
+            end,
+            nil,
+            function()
+                ClearPedTasksImmediately(PlayerPedId())
+            end
+        )
+    end,
+    shoe_glue = function()
+        withTimedEffect('troll_shoe_glue', 3000,
+            function()
+                notify('TROLL: shoe glue')
+                FreezeEntityPosition(PlayerPedId(), true)
+            end,
+            nil,
+            function()
+                FreezeEntityPosition(PlayerPedId(), false)
+            end
+        )
+    end,
+    hiccup_boost = function()
+        withTimedEffect('troll_hiccup_boost', 5000,
+            function() notify('TROLL: hiccup boost') end,
+            function()
+                local ped = PlayerPedId()
+                local vel = GetEntityVelocity(ped)
+                SetEntityVelocity(ped, vel.x, vel.y, vel.z + 0.7)
+            end,
+            nil,
+            900
+        )
+    end,
+    phantom_honk = function()
+        withTimedEffect('troll_phantom_honk', 5000,
+            function() notify('TROLL: phantom honk') end,
+            function()
+                local ped = PlayerPedId()
+                local coords = GetEntityCoords(ped)
+                PlaySoundFromCoord(-1, 'HORN', coords.x, coords.y, coords.z, 'HUD_AWARDS', false, 0, false)
+            end,
+            nil,
+            900
+        )
     end
 }
 
