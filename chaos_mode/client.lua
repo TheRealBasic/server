@@ -8,10 +8,18 @@ local lastRadioSyncSentAt = 0
 local eventToggleState = {}
 local buildModeActive = false
 local buildGridSnapEnabled = true
+local buildSurfaceAlignEnabled = true
+local buildPlacementMode = 'world'
 local selectedBuildPropId = nil
 local selectedBuildPropModel = nil
 local buildGhostEntity = 0
 local buildHeightOffset = 0.0
+local buildAttachTargetNetId = 0
+local buildAttachTargetEntity = 0
+local buildAttachOffset = vec3(0.0, 0.0, 0.0)
+local buildAttachRotation = vec3(0.0, 0.0, 0.0)
+local buildGridStep = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.GridStep) or 0.25
+local buildRotationStep = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.RotationStep) or 15.0
 local buildPlacementTransform = {
     position = vec3(0.0, 0.0, 0.0),
     heading = 0.0,
@@ -128,6 +136,51 @@ local function raycastFromCamera(maxDistance)
     end
 
     return false, rayEnd, cameraDirection, nil
+end
+
+local function raycastEntityFromCamera(maxDistance)
+    local cameraCoord = GetGameplayCamCoord()
+    local cameraDirection = getGameplayCameraDirection()
+    local rayEnd = cameraCoord + (cameraDirection * maxDistance)
+    local rayHandle = StartShapeTestRay(cameraCoord.x, cameraCoord.y, cameraCoord.z, rayEnd.x, rayEnd.y, rayEnd.z, 511, PlayerPedId(), 7)
+    local _, hit, endCoords, _, entityHit = GetShapeTestResult(rayHandle)
+    if hit == 1 and entityHit and entityHit ~= 0 and DoesEntityExist(entityHit) then
+        return true, entityHit, endCoords
+    end
+
+    return false, 0, endCoords
+end
+
+local function normalizeDegrees(angle)
+    local n = tonumber(angle) or 0.0
+    while n > 180.0 do n = n - 360.0 end
+    while n < -180.0 do n = n + 360.0 end
+    return n
+end
+
+local function drawBuildHelpText(text)
+    BeginTextCommandDisplayHelp('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandDisplayHelp(0, false, false, -1)
+end
+
+local function clearAttachTarget()
+    buildAttachTargetNetId = 0
+    buildAttachTargetEntity = 0
+    buildAttachOffset = vec3(0.0, 0.0, 0.0)
+    buildAttachRotation = vec3(0.0, 0.0, 0.0)
+end
+
+local function toggleBuildModeType()
+    if buildPlacementMode == 'world' then
+        buildPlacementMode = 'attach'
+        clearAttachTarget()
+        notify('Build mode: ATTACH')
+    else
+        buildPlacementMode = 'world'
+        clearAttachTarget()
+        notify('Build mode: WORLD SNAP')
+    end
 end
 
 local function getDefaultBuildSelection()
@@ -309,10 +362,13 @@ local function setBuildModeState(enabled)
         buildPlacementTransform.pitch = 0.0
         buildPlacementTransform.roll = 0.0
         buildHeightOffset = 0.0
+        buildPlacementMode = 'world'
+        clearAttachTarget()
         buildPlacementValid = false
-        notify(('Build mode enabled (%s)'):format(selectedBuildPropId))
+        notify(('Build mode enabled (%s) | M: mode, G: grid, H: align, [/]: snap step, E: place/select'):format(selectedBuildPropId))
     else
         deleteBuildGhostEntity()
+        clearAttachTarget()
         buildPlacementValid = false
         notify('Build mode disabled')
     end
@@ -2443,35 +2499,32 @@ CreateThread(function()
                 target = playerCoords + (dir / #(dir) * maxDistance)
             end
 
-            local gridStep = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.GridStep) or 0.25
             target = target + vec3(0.0, 0.0, buildHeightOffset)
 
-            if buildGridSnapEnabled then
+            if buildPlacementMode == 'world' and buildGridSnapEnabled then
                 target = vec3(
-                    math.floor((target.x / gridStep) + 0.5) * gridStep,
-                    math.floor((target.y / gridStep) + 0.5) * gridStep,
-                    math.floor((target.z / gridStep) + 0.5) * gridStep
+                    math.floor((target.x / buildGridStep) + 0.5) * buildGridStep,
+                    math.floor((target.y / buildGridStep) + 0.5) * buildGridStep,
+                    math.floor((target.z / buildGridStep) + 0.5) * buildGridStep
                 )
             end
 
             if IsControlJustPressed(0, 174) then
-                local step = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.RotationStep) or 15.0
-                buildPlacementTransform.heading = buildPlacementTransform.heading - step
+                buildPlacementTransform.heading = buildPlacementTransform.heading - buildRotationStep
             end
 
             if IsControlJustPressed(0, 175) then
-                local step = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.RotationStep) or 15.0
-                buildPlacementTransform.heading = buildPlacementTransform.heading + step
+                buildPlacementTransform.heading = buildPlacementTransform.heading + buildRotationStep
             end
 
             if IsControlJustPressed(0, 15) then
-                buildHeightOffset = buildHeightOffset + gridStep
-                target = target + vec3(0.0, 0.0, gridStep)
+                buildHeightOffset = buildHeightOffset + buildGridStep
+                target = target + vec3(0.0, 0.0, buildGridStep)
             end
 
             if IsControlJustPressed(0, 14) then
-                buildHeightOffset = buildHeightOffset - gridStep
-                target = target - vec3(0.0, 0.0, gridStep)
+                buildHeightOffset = buildHeightOffset - buildGridStep
+                target = target - vec3(0.0, 0.0, buildGridStep)
             end
 
             if IsControlJustPressed(0, 47) then
@@ -2479,9 +2532,66 @@ CreateThread(function()
                 notify(('Build grid snap: %s'):format(buildGridSnapEnabled and 'ON' or 'OFF'))
             end
 
+            if IsControlJustPressed(0, 74) then
+                buildSurfaceAlignEnabled = not buildSurfaceAlignEnabled
+                notify(('Build surface align: %s'):format(buildSurfaceAlignEnabled and 'ON' or 'OFF'))
+            end
+
+            if IsControlJustPressed(0, 301) then
+                toggleBuildModeType()
+            end
+
+            if IsControlJustPressed(0, 39) then
+                buildRotationStep = math.max(1.0, buildRotationStep - 1.0)
+                notify(('Build rotation snap: %.1f°'):format(buildRotationStep))
+            end
+
+            if IsControlJustPressed(0, 40) then
+                buildRotationStep = math.min(90.0, buildRotationStep + 1.0)
+                notify(('Build rotation snap: %.1f°'):format(buildRotationStep))
+            end
+
+            if IsControlJustPressed(0, 10) then
+                buildGridStep = math.max(0.05, buildGridStep - 0.05)
+                notify(('Build grid step: %.2f m'):format(buildGridStep))
+            end
+
+            if IsControlJustPressed(0, 11) then
+                buildGridStep = math.min(5.0, buildGridStep + 0.05)
+                notify(('Build grid step: %.2f m'):format(buildGridStep))
+            end
+
+            if buildPlacementMode == 'attach' then
+                if buildAttachTargetEntity ~= 0 and not DoesEntityExist(buildAttachTargetEntity) then
+                    clearAttachTarget()
+                    notify('Attach target lost')
+                end
+
+                if buildAttachTargetEntity ~= 0 then
+                    local targetRot = GetEntityRotation(buildAttachTargetEntity, 2)
+                    target = GetOffsetFromEntityInWorldCoords(buildAttachTargetEntity, buildAttachOffset.x, buildAttachOffset.y, buildAttachOffset.z)
+                    buildPlacementTransform.pitch = normalizeDegrees(targetRot.x + buildAttachRotation.x)
+                    buildPlacementTransform.roll = normalizeDegrees(targetRot.y + buildAttachRotation.y)
+                    buildPlacementTransform.heading = normalizeDegrees(targetRot.z + buildAttachRotation.z)
+                end
+            elseif buildSurfaceAlignEnabled and surfaceNormal then
+                local clampedZ = math.max(0.001, math.min(1.0, surfaceNormal.z))
+                buildPlacementTransform.pitch = normalizeDegrees(-math.deg(math.atan2(surfaceNormal.x, clampedZ)))
+                buildPlacementTransform.roll = normalizeDegrees(math.deg(math.atan2(surfaceNormal.y, clampedZ)))
+            else
+                buildPlacementTransform.pitch = 0.0
+                buildPlacementTransform.roll = 0.0
+            end
+
             buildPlacementTransform.position = target
 
-            local placementValid = validateBuildPlacement(target, rayHit, surfaceNormal, maxDistance)
+            local placementValid = buildPlacementMode == 'attach'
+            if buildPlacementMode == 'world' then
+                placementValid = validateBuildPlacement(target, rayHit, surfaceNormal, maxDistance)
+            elseif buildAttachTargetEntity ~= 0 then
+                local playerCoordsNow = GetEntityCoords(PlayerPedId())
+                placementValid = #(target - playerCoordsNow) <= maxDistance
+            end
 
             if ensureBuildGhostEntity() then
                 SetEntityCoordsNoOffset(buildGhostEntity, target.x, target.y, target.z, false, false, false)
@@ -2489,6 +2599,35 @@ CreateThread(function()
                 setBuildGhostValidity(placementValid)
 
                 if placementValid and IsControlJustPressed(0, 38) then
+                    local attachPayload = nil
+                    if buildPlacementMode == 'attach' then
+                        if buildAttachTargetEntity == 0 then
+                            local foundEntity, entityHit = raycastEntityFromCamera(maxDistance)
+                            if foundEntity and entityHit ~= buildGhostEntity and entityHit ~= PlayerPedId() then
+                                local targetRot = GetEntityRotation(entityHit, 2)
+                                buildAttachTargetEntity = entityHit
+                                buildAttachTargetNetId = NetworkGetNetworkIdFromEntity(entityHit)
+                                buildAttachOffset = GetOffsetFromEntityGivenWorldCoords(entityHit, target.x, target.y, target.z)
+                                buildAttachRotation = vec3(
+                                    normalizeDegrees(buildPlacementTransform.pitch - targetRot.x),
+                                    normalizeDegrees(buildPlacementTransform.roll - targetRot.y),
+                                    normalizeDegrees(buildPlacementTransform.heading - targetRot.z)
+                                )
+                                notify(('Attach target selected (netId: %d)'):format(buildAttachTargetNetId))
+                            else
+                                notify('Look at an entity and press E to select attach target')
+                            end
+                            placementValid = false
+                        else
+                            attachPayload = {
+                                targetNetId = buildAttachTargetNetId,
+                                offset = { x = buildAttachOffset.x, y = buildAttachOffset.y, z = buildAttachOffset.z },
+                                rotation = { x = buildAttachRotation.x, y = buildAttachRotation.y, z = buildAttachRotation.z }
+                            }
+                        end
+                    end
+
+                    if buildPlacementMode == 'world' or attachPayload then
                     TriggerServerEvent('chaos_mode:placePropRequest', {
                         propId = selectedBuildPropId,
                         model = selectedBuildPropModel,
@@ -2500,12 +2639,23 @@ CreateThread(function()
                         heading = buildPlacementTransform.heading,
                         pitch = buildPlacementTransform.pitch,
                         roll = buildPlacementTransform.roll,
+                        placementMode = buildPlacementMode,
+                        attach = attachPayload,
                         gridSnap = buildGridSnapEnabled,
                         rayHit = rayHit == true
                     })
                     notify(('Build prop placed request: %s'):format(selectedBuildPropId))
+                    end
                 end
             end
+
+            drawBuildHelpText(('Mode: %s | G grid:%s H align:%s | step %.2fm %.1f° | Arrows rotate | PgUp/PgDn Z | M switch | E select/place'):format(
+                buildPlacementMode == 'attach' and 'ATTACH' or 'WORLD',
+                buildGridSnapEnabled and 'ON' or 'OFF',
+                buildSurfaceAlignEnabled and 'ON' or 'OFF',
+                buildGridStep,
+                buildRotationStep
+            ))
 
             if IsControlJustPressed(0, 177) then
                 setBuildModeState(false)
