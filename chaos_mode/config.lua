@@ -243,7 +243,8 @@ Config.EventPool = {
     'honkpocalypse',
     'sticky_floor_lite',
     'dancequake',
-    'brainlag_controls'
+    'brainlag_controls',
+    'singularity_vortex'
 }
 
 Config.EventCompatibility = {
@@ -363,7 +364,20 @@ Config.EventCompatibility = {
     honkpocalypse = {},
     sticky_floor_lite = { effectKey = 'mobility_modifier', durationMs = 5000 },
     dancequake = { effectKey = 'mobility_modifier', durationMs = 10000 },
-    brainlag_controls = { effectKey = 'ui_modifier', durationMs = 9000 }
+    brainlag_controls = { effectKey = 'ui_modifier', durationMs = 9000 },
+    singularity_vortex = {
+        effectKey = 'physics_modifier',
+        durationMs = 12000,
+        blacklist = {
+            low_gravity_burst = true,
+            moon_jump_mania = true,
+            tornado_twist = true,
+            gravity_flip = true,
+            gravity_io = true,
+            tiny_tornado = true,
+            pogo_protocol = true
+        }
+    }
 }
 
 Config.WeatherTypes = {
