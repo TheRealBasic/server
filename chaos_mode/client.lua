@@ -1,4 +1,3 @@
-local spawnedObjects = {}
 local hostilePeds = {}
 local lowGravityActive = false
 local activeTimedEffects = {}
@@ -46,15 +45,14 @@ local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop)
     return true
 end
 
-local function cleanObjectsAfter(ms)
+local function cleanObjectsAfter(objects, ms)
     CreateThread(function()
         Wait(ms)
-        for _, object in ipairs(spawnedObjects) do
+        for _, object in ipairs(objects) do
             if DoesEntityExist(object) then
                 DeleteEntity(object)
             end
         end
-        spawnedObjects = {}
     end)
 end
 
@@ -106,6 +104,7 @@ local function spawnRandomObjects(data)
     local playerPed = PlayerPedId()
     local baseCoords = GetEntityCoords(playerPed)
     local amount = math.random(data.objectMin, data.objectMax)
+    local eventObjects = {}
 
     notify(('Object storm: %d props dropped nearby'):format(amount))
 
@@ -121,13 +120,13 @@ local function spawnRandomObjects(data)
             local object = CreateObject(model, spawn.x, spawn.y, spawn.z, true, true, false)
             if DoesEntityExist(object) then
                 PlaceObjectOnGroundProperly(object)
-                table.insert(spawnedObjects, object)
+                table.insert(eventObjects, object)
             end
             SetModelAsNoLongerNeeded(model)
         end
     end
 
-    cleanObjectsAfter(data.cleanupMs)
+    cleanObjectsAfter(eventObjects, data.cleanupMs)
 end
 
 local function lowGravityBurst()
