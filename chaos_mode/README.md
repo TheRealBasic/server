@@ -55,3 +55,24 @@ Use these optional settings to make event selection feel less repetitive while s
 3. Reduce noisy or overbearing events to `0.4-0.8`.
 4. Raise underrepresented "fun" events to `1.2-1.8`.
 5. If repeats still feel common, increase the history window by 1-2 and re-test.
+
+## Sandbox gameplay expansion (15 systems)
+This resource now includes an optional sandbox gameplay layer with progression-focused systems:
+
+1. Player housing (`/house`)
+2. Business ownership (`/business`)
+3. Gathering and crafting (`/gather`, `/craft`)
+4. Garage progression (`/garage`)
+5. Job reputation and deliveries (`/jobrep`, `/deliver`)
+6. Property construction upgrades (`/property`)
+7. Fishing career (`/fish`)
+8. Hunting career (`/hunt`)
+9. Player marketplace (`/market`)
+10. Factions and membership (`/faction`)
+11. Territory capture bonuses (`/territory`)
+12. Banking, loans, insurance (`/bank`)
+13. Skill tree upgrades (`/skill`)
+14. Community projects (`/project`)
+15. Seasonal participation rewards (`/season`)
+
+Plus contracts (`/contract`) and quick help (`/sandboxhelp`, `/sandboxstatus`, `/sandboxhud`).
