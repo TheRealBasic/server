@@ -202,7 +202,8 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
     TriggerClientEvent('chaos_mode:menuData', src, {
         events = Config.EventPool,
         players = getLobbyPlayers(),
-        trollActions = trollActions
+        trollActions = trollActions,
+        trollActionMeta = Config.TrollActionMeta or {}
     })
 end)
 

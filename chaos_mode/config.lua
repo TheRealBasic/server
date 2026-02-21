@@ -9,6 +9,75 @@ Config.ObjectCleanupMs = 30000
 Config.ComboEnabled = true
 Config.ComboChance = 30 -- percent chance to trigger two events at once
 
+Config.TrollActionMeta = {
+    launch_up = {
+        label = 'Launch Up',
+        description = 'Throws the player straight into the air.'
+    },
+    spin_out = {
+        label = 'Spin Out',
+        description = 'Applies a sudden spin force and disorients movement.',
+        durationMs = 5000
+    },
+    ragdoll_drop = {
+        label = 'Ragdoll Drop',
+        description = 'Forces the player into a ragdoll fall.'
+    },
+    ignite = {
+        label = 'Ignite',
+        description = 'Sets the player on fire for a short burst.',
+        durationMs = 5000
+    },
+    strip_weapon = {
+        label = 'Strip Weapon',
+        description = 'Removes the currently equipped weapon.'
+    },
+    drain_armor = {
+        label = 'Drain Armor',
+        description = 'Clears all armor from the player.'
+    },
+    blur_vision = {
+        label = 'Blur Vision',
+        description = 'Applies a heavy blur visual effect.',
+        durationMs = 8000
+    },
+    freeze_feet = {
+        label = 'Freeze Feet',
+        description = 'Temporarily roots the player in place.',
+        durationMs = 5000
+    },
+    drunk_walk = {
+        label = 'Drunk Walk',
+        description = 'Makes movement unstable and sloppy.',
+        durationMs = 10000
+    },
+    fake_explosion = {
+        label = 'Fake Explosion',
+        description = 'Plays an explosion effect near the player without lethal damage.'
+    },
+    seat_shuffle = {
+        label = 'Seat Shuffle',
+        description = 'Moves the player to another available vehicle seat.'
+    },
+    stall_engine = {
+        label = 'Stall Engine',
+        description = 'Kills the engine of the current vehicle.'
+    },
+    burst_tires = {
+        label = 'Burst Tires',
+        description = 'Pops every tire on the current vehicle.'
+    },
+    teleport_back = {
+        label = 'Teleport Back',
+        description = 'Snaps the player back to a previous position.'
+    },
+    reverse_controls = {
+        label = 'Reverse Controls',
+        description = 'Inverts movement controls for maximum confusion.',
+        durationMs = 10000
+    }
+}
+
 Config.EventPool = {
     'weather_shift',
     'hostile_npcs',

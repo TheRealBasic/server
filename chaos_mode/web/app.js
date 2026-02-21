@@ -1,5 +1,6 @@
 const app = document.getElementById('app');
 const eventSelect = document.getElementById('eventSelect');
+const eventInfo = document.getElementById('eventInfo');
 const allPlayersRadio = document.getElementById('allPlayers');
 const specificPlayersRadio = document.getElementById('specificPlayers');
 const playerList = document.getElementById('playerList');
@@ -10,6 +11,7 @@ const trollTab = document.getElementById('trollTab');
 const chaosPanel = document.getElementById('chaosPanel');
 const trollPanel = document.getElementById('trollPanel');
 const trollActionSelect = document.getElementById('trollActionSelect');
+const trollActionInfo = document.getElementById('trollActionInfo');
 const triggerTrollBtn = document.getElementById('triggerTrollBtn');
 
 const resourceName = typeof GetParentResourceName === 'function'
@@ -20,6 +22,7 @@ const state = {
   events: [],
   players: [],
   trollActions: [],
+  trollActionMeta: {},
   mode: 'chaos'
 };
 
@@ -31,14 +34,33 @@ function postNui(name, data = {}) {
   });
 }
 
+function formatDuration(durationMs) {
+  if (typeof durationMs !== 'number' || Number.isNaN(durationMs) || durationMs <= 0) {
+    return null;
+  }
+
+  const seconds = durationMs / 1000;
+  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`;
+}
+
+function describeMeta(id, meta) {
+  const description = meta && typeof meta.description === 'string' && meta.description.trim()
+    ? meta.description.trim()
+    : `ID: ${id}`;
+  const duration = formatDuration(meta && meta.durationMs);
+  return duration ? `${description} (${duration})` : description;
+}
+
 function renderEvents() {
   eventSelect.innerHTML = '';
   state.events.forEach((eventName) => {
+    const meta = state.trollActionMeta[eventName] || {};
     const option = document.createElement('option');
     option.value = eventName;
-    option.textContent = eventName;
+    option.textContent = meta.label || eventName;
     eventSelect.appendChild(option);
   });
+  updateEventInfo();
 }
 
 function renderPlayers() {
@@ -69,11 +91,43 @@ function renderPlayers() {
 function renderTrollActions() {
   trollActionSelect.innerHTML = '';
   state.trollActions.forEach((actionName) => {
+    const meta = state.trollActionMeta[actionName] || {};
     const option = document.createElement('option');
     option.value = actionName;
-    option.textContent = actionName;
+    option.textContent = meta.label || actionName;
     trollActionSelect.appendChild(option);
   });
+  updateTrollActionInfo();
+}
+
+function updateEventInfo() {
+  if (!eventInfo) {
+    return;
+  }
+
+  const selectedId = eventSelect.value;
+  if (!selectedId) {
+    eventInfo.textContent = 'No event selected.';
+    return;
+  }
+
+  const meta = state.trollActionMeta[selectedId] || {};
+  eventInfo.textContent = describeMeta(selectedId, meta);
+}
+
+function updateTrollActionInfo() {
+  if (!trollActionInfo) {
+    return;
+  }
+
+  const selectedId = trollActionSelect.value;
+  if (!selectedId) {
+    trollActionInfo.textContent = 'No trolling action selected.';
+    return;
+  }
+
+  const meta = state.trollActionMeta[selectedId] || {};
+  trollActionInfo.textContent = describeMeta(selectedId, meta);
 }
 
 function setMode(mode) {
@@ -118,6 +172,7 @@ window.addEventListener('message', (event) => {
     state.events = Array.isArray(data.events) ? data.events : [];
     state.players = Array.isArray(data.players) ? data.players : [];
     state.trollActions = Array.isArray(data.trollActions) ? data.trollActions : [];
+    state.trollActionMeta = data.trollActionMeta && typeof data.trollActionMeta === 'object' ? data.trollActionMeta : {};
     renderEvents();
     renderPlayers();
     renderTrollActions();
@@ -127,6 +182,8 @@ window.addEventListener('message', (event) => {
 
 allPlayersRadio.addEventListener('change', updatePlayerListState);
 specificPlayersRadio.addEventListener('change', updatePlayerListState);
+eventSelect.addEventListener('change', updateEventInfo);
+trollActionSelect.addEventListener('change', updateTrollActionInfo);
 
 triggerBtn.addEventListener('click', async () => {
   const eventName = eventSelect.value;
