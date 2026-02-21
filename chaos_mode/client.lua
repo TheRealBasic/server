@@ -67,6 +67,9 @@ local function spawnHostilePeds(durationMs)
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
     local pedModel = `g_m_y_lost_01`
+    local targetCount = 6
+    local maxRetriesPerSpawn = 4
+    local maxSpawnAttempts = targetCount * 4
 
     if not loadModel(pedModel) then
         notify('Failed to load hostile NPC model')
@@ -75,17 +78,46 @@ local function spawnHostilePeds(durationMs)
 
     notify('NPC rebellion started!')
 
-    for i = 1, 6 do
+    local spawnedCount = 0
+    local attempts = 0
+
+    while spawnedCount < targetCount and attempts < maxSpawnAttempts do
+        attempts = attempts + 1
         local offset = vec3(math.random(-20, 20), math.random(-20, 20), 0.0)
-        local spawn = playerCoords + offset
-        local ped = CreatePed(4, pedModel, spawn.x, spawn.y, spawn.z, 0.0, true, true)
+        local spawnX = playerCoords.x + offset.x
+        local spawnY = playerCoords.y + offset.y
+        local spawnZ = nil
+
+        for retry = 1, maxRetriesPerSpawn do
+            local probeZ = playerCoords.z + 40.0 + ((retry - 1) * 20.0)
+            local foundGround, groundZ = GetGroundZFor_3dCoord(spawnX, spawnY, probeZ, false)
+            if foundGround then
+                spawnZ = groundZ + 1.0
+                break
+            end
+
+            local foundGroundNormal, normalZ = GetGroundZAndNormalFor_3dCoord(spawnX, spawnY, probeZ)
+            if foundGroundNormal then
+                spawnZ = normalZ + 1.0
+                break
+            end
+        end
+
+        if spawnZ == nil then
+            goto continue
+        end
+
+        local ped = CreatePed(4, pedModel, spawnX, spawnY, spawnZ, 0.0, true, true)
         if DoesEntityExist(ped) then
             GiveWeaponToPed(ped, `WEAPON_BAT`, 1, false, true)
             SetPedAsEnemy(ped, true)
             SetPedCombatAttributes(ped, 46, true)
             TaskCombatPed(ped, playerPed, 0, 16)
             table.insert(hostilePeds, ped)
+            spawnedCount = spawnedCount + 1
         end
+
+        ::continue::
     end
 
     SetModelAsNoLongerNeeded(pedModel)
