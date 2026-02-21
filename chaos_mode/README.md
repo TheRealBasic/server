@@ -9,6 +9,7 @@ A lightweight FiveM chaos addon for sandbox servers.
 - Hostile NPC rebellion waves
 - Random prop storms around players
 - Expanded movement, combat, camera, HUD, vehicle, world, and control disruption effects
+- In-game event trigger menu (default key: `F9`) with targeting for all players or selected lobby players
 
 ## Install
 1. Drop the `chaos_mode` folder into your server `resources/` directory.
@@ -20,4 +21,4 @@ A lightweight FiveM chaos addon for sandbox servers.
 - `chaosnow` → forces an immediate random chaos event
 
 ## Config
-Edit `config.lua` to tune event pool, timing, spawn counts, and weather set.
+Edit `config.lua` to tune event pool, timing, spawn counts, weather set, and menu keybind.

@@ -1,10 +1,11 @@
 Config = {}
 
 Config.Enabled = true
-Config.MinIntervalMs = 120000 -- 2 minutes
-Config.MaxIntervalMs = 300000 -- 5 minutes
-Config.HostileNpcDurationMs = 60000
-Config.ObjectCleanupMs = 180000
+Config.MinIntervalMs = 45000
+Config.MaxIntervalMs = 90000
+Config.HostileNpcDurationMs = 30000
+Config.ObjectCleanupMs = 30000
+
 Config.ComboEnabled = true
 Config.ComboChance = 30 -- percent chance to trigger two events at once
 
@@ -152,4 +153,8 @@ Config.SpawnRadius = 30.0
 Config.Commands = {
     Toggle = 'chaos',
     TriggerNow = 'chaosnow'
+}
+
+Config.Menu = {
+    OpenKey = 'F9'
 }

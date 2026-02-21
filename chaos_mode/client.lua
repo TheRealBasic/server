@@ -1,11 +1,30 @@
 local hostilePeds = {}
 local lowGravityActive = false
 local activeTimedEffects = {}
+local menuOpen = false
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
     AddTextComponentSubstringPlayerName(('~o~CHAOS~s~: %s'):format(message))
     EndTextCommandThefeedPostTicker(false, true)
+end
+
+local function setMenuState(isOpen)
+    menuOpen = isOpen
+    SetNuiFocus(isOpen, isOpen)
+    SendNUIMessage({
+        action = 'setVisible',
+        visible = isOpen
+    })
+end
+
+local function openChaosMenu()
+    TriggerServerEvent('chaos_mode:requestMenuData')
+    setMenuState(true)
+end
+
+local function closeChaosMenu()
+    setMenuState(false)
 end
 
 local function loadModel(model)
@@ -644,8 +663,8 @@ local function pixel_world()
     if withTimedEffect('pixel_world', 12000,
         function()
             notify('Pixel world for 12s')
-            SetTimecycleModifier('NG_filmic04')
-            SetTimecycleModifierStrength(2.0)
+            SetTimecycleModifier('mp_corona_switch')
+            SetTimecycleModifierStrength(1.0)
         end,
         nil,
         function()
@@ -655,10 +674,13 @@ local function pixel_world()
 end
 
 local function random_camera_zoom()
-    local value = math.random(30, 110) / 100
-    notify(('Camera zoom chaos: %.2fx'):format(value))
-    SetFollowPedCamViewMode(math.random(0, 4))
-    SetGameplayCamRelativePitch((value - 0.7) * 20.0, 1.0)
+    local fov = math.random(35, 95)
+    notify(('Camera FOV set to %d for 6s'):format(fov))
+    SetGameplayCamFov(fov)
+    CreateThread(function()
+        Wait(6000)
+        SetGameplayCamFov(70.0)
+    end)
 end
 
 local function drunk_walk()
@@ -666,8 +688,10 @@ local function drunk_walk()
         function()
             notify('Drunk walk for 12s')
             RequestAnimSet('move_m@drunk@verydrunk')
-            while not HasAnimSetLoaded('move_m@drunk@verydrunk') do Wait(0) end
-            SetPedMovementClipset(PlayerPedId(), 'move_m@drunk@verydrunk', 1.0)
+            while not HasAnimSetLoaded('move_m@drunk@verydrunk') do
+                Wait(0)
+            end
+            SetPedMovementClipset(PlayerPedId(), 'move_m@drunk@verydrunk', 0.2)
         end,
         nil,
         function()
@@ -677,31 +701,34 @@ local function drunk_walk()
 end
 
 local function npc_panic()
+    notify('Nearby NPCs panic!')
     local ped = PlayerPedId()
     local coords = GetEntityCoords(ped)
-    local handle, foundPed = FindFirstPed()
-    local success = true
-    local affected = 0
-
-    repeat
-        if DoesEntityExist(foundPed) and not IsPedAPlayer(foundPed) and #(GetEntityCoords(foundPed) - coords) < 45.0 then
-            TaskSmartFleePed(foundPed, ped, 120.0, 6000, false, false)
-            affected = affected + 1
+    for _, npc in ipairs(GetGamePool('CPed')) do
+        if npc ~= ped and not IsPedAPlayer(npc) then
+            local npcCoords = GetEntityCoords(npc)
+            if #(coords - npcCoords) < 50.0 then
+                TaskSmartFleePed(npc, ped, 120.0, 6000, false, false)
+            end
         end
-        success, foundPed = FindNextPed(handle)
-    until not success
-    EndFindPed(handle)
-
-    notify(('NPC panic triggered (%d nearby)'):format(affected))
+    end
 end
 
 local function explosion_ring()
-    local ped = PlayerPedId()
-    local coords = GetEntityCoords(ped)
+    local coords = GetEntityCoords(PlayerPedId())
     notify('Explosion ring!')
     for i = 1, 8 do
-        local angle = (math.pi * 2) * (i / 8)
-        AddExplosion(coords.x + math.cos(angle) * 10.0, coords.y + math.sin(angle) * 10.0, coords.z, 2, 0.35, true, false, 0.1)
+        local angle = math.rad((i - 1) * 45)
+        AddExplosion(
+            coords.x + math.cos(angle) * 8.0,
+            coords.y + math.sin(angle) * 8.0,
+            coords.z,
+            2,
+            0.4,
+            true,
+            false,
+            0.2
+        )
     end
 end
 
@@ -710,12 +737,12 @@ local function trampoline_steps()
         function() notify('Trampoline steps for 9s') end,
         function()
             local ped = PlayerPedId()
-            if IsPedOnFoot(ped) and not IsPedInParachuteFreeFall(ped) then
-                ApplyForceToEntity(ped, 1, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+            if IsPedOnFoot(ped) and IsPedRunning(ped) then
+                ApplyForceToEntity(ped, 1, 0.0, 0.0, 2.2, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
             end
         end,
         nil,
-        1000
+        300
     ) then end
 end
 
@@ -988,6 +1015,51 @@ RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
     end
 end)
 
+RegisterNetEvent('chaos_mode:menuData', function(payload)
+    SendNUIMessage({
+        action = 'setData',
+        events = payload.events or {},
+        players = payload.players or {}
+    })
+end)
+
+RegisterNUICallback('close', function(_, cb)
+    closeChaosMenu()
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('triggerEvent', function(data, cb)
+    TriggerServerEvent('chaos_mode:triggerSelectedEvent', {
+        eventName = data.eventName,
+        targetType = data.targetType,
+        players = data.players or {}
+    })
+    cb({ ok = true })
+end)
+
+RegisterCommand('chaosmenu', function()
+    if menuOpen then
+        closeChaosMenu()
+    else
+        openChaosMenu()
+    end
+end, false)
+
+RegisterKeyMapping('chaosmenu', 'Open chaos event menu', 'keyboard', Config.Menu.OpenKey)
+
+CreateThread(function()
+    while true do
+        if menuOpen then
+            DisableControlAction(0, 1, true)
+            DisableControlAction(0, 2, true)
+            DisableControlAction(0, 200, true)
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+
 AddEventHandler('onClientResourceStart', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     resetChaosState()
@@ -995,5 +1067,6 @@ end)
 
 AddEventHandler('onClientResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
+    closeChaosMenu()
     resetChaosState()
 end)

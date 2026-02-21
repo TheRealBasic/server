@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chaos Menu</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" class="hidden">
+    <header>
+      <h1>Chaos Trigger</h1>
+      <button id="closeBtn" type="button">✕</button>
+    </header>
+
+    <section>
+      <label for="eventSelect">Event</label>
+      <select id="eventSelect"></select>
+    </section>
+
+    <section class="targets">
+      <label>
+        <input id="allPlayers" type="radio" name="targetType" value="all" checked>
+        All Players
+      </label>
+      <label>
+        <input id="specificPlayers" type="radio" name="targetType" value="specific">
+        Specific Players
+      </label>
+      <div id="playerList" class="player-list disabled"></div>
+    </section>
+
+    <footer>
+      <button id="triggerBtn" type="button">Trigger Event</button>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

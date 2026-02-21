@@ -113,8 +113,8 @@ local function chooseComboEvent()
     return { primaryEvent, randomFrom(candidates) }
 end
 
-local function triggerChaosEvent(eventNames)
-    TriggerClientEvent('chaos_mode:runEvent', -1, eventNames, {
+local function createEventData()
+    return {
         weather = randomFrom(Config.WeatherTypes),
         hostileDuration = Config.HostileNpcDurationMs,
         objectMin = Config.RandomObjectCount.min,
@@ -123,9 +123,35 @@ local function triggerChaosEvent(eventNames)
         cleanupMs = Config.ObjectCleanupMs,
         models = Config.RandomObjectModels,
         eventCompatibility = Config.EventCompatibility
-    })
+    }
+end
 
+local function triggerChaosEvent(eventNames)
+    TriggerClientEvent('chaos_mode:runEvent', -1, eventNames, createEventData())
     print(('[chaos_mode] Triggered event(s): %s'):format(table.concat(eventNames, ', ')))
+end
+
+local function eventExists(eventName)
+    for _, poolEventName in ipairs(Config.EventPool) do
+        if poolEventName == eventName then
+            return true
+        end
+    end
+    return false
+end
+
+local function getLobbyPlayers()
+    local players = {}
+    for _, playerSrc in ipairs(GetPlayers()) do
+        players[#players + 1] = {
+            id = tonumber(playerSrc),
+            name = GetPlayerName(playerSrc) or ('Player %s'):format(playerSrc)
+        }
+    end
+    table.sort(players, function(a, b)
+        return a.id < b.id
+    end)
+    return players
 end
 
 if not validateConfig() then
@@ -151,6 +177,69 @@ CreateThread(function()
             Wait(2000)
         end
     end
+end)
+
+RegisterNetEvent('chaos_mode:requestMenuData', function()
+    local src = source
+    TriggerClientEvent('chaos_mode:menuData', src, {
+        events = Config.EventPool,
+        players = getLobbyPlayers()
+    })
+end)
+
+RegisterNetEvent('chaos_mode:triggerSelectedEvent', function(payload)
+    local src = source
+
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local eventName = payload.eventName
+    local targetType = payload.targetType
+    local selectedPlayers = payload.players
+
+    if type(eventName) ~= 'string' or not eventExists(eventName) then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Chaos', 'Invalid event selected.' }
+        })
+        return
+    end
+
+    if targetType == 'all' then
+        TriggerClientEvent('chaos_mode:runEvent', -1, { eventName }, createEventData())
+        print(('[chaos_mode] %s triggered event "%s" for all players'):format(GetPlayerName(src) or src, eventName))
+        return
+    end
+
+    if targetType ~= 'specific' or type(selectedPlayers) ~= 'table' or #selectedPlayers == 0 then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Chaos', 'Select at least one target player.' }
+        })
+        return
+    end
+
+    local online = {}
+    for _, playerSrc in ipairs(GetPlayers()) do
+        online[tonumber(playerSrc)] = true
+    end
+
+    local triggeredFor = 0
+    for _, playerId in ipairs(selectedPlayers) do
+        local numericPlayerId = tonumber(playerId)
+        if numericPlayerId and online[numericPlayerId] then
+            TriggerClientEvent('chaos_mode:runEvent', numericPlayerId, { eventName }, createEventData())
+            triggeredFor = triggeredFor + 1
+        end
+    end
+
+    if triggeredFor == 0 then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Chaos', 'No valid target players online.' }
+        })
+        return
+    end
+
+    print(('[chaos_mode] %s triggered event "%s" for %d player(s)'):format(GetPlayerName(src) or src, eventName, triggeredFor))
 end)
 
 RegisterCommand(Config.Commands.Toggle, function(source)
