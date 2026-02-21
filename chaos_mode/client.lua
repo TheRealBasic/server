@@ -18,7 +18,9 @@ local function loadModel(model)
     return HasModelLoaded(model)
 end
 
-local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop)
+local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop, tickMs)
+    tickMs = tickMs or 100
+
     if activeTimedEffects[effectKey] then return false end
     activeTimedEffects[effectKey] = true
 
@@ -32,7 +34,7 @@ local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop)
             if onTick then
                 onTick()
             end
-            Wait(0)
+            Wait(tickMs)
         end
 
         if onStop then
@@ -181,7 +183,8 @@ local function super_jump_burst()
     if withTimedEffect('super_jump_burst', 15000,
         function() notify('Super jump for 15s') end,
         function() SetSuperJumpThisFrame(PlayerId()) end,
-        nil
+        nil,
+        0
     ) then end
 end
 
@@ -189,7 +192,8 @@ local function explosive_ammo_burst()
     if withTimedEffect('explosive_ammo_burst', 12000,
         function() notify('Explosive ammo enabled for 12s') end,
         function() SetExplosiveAmmoThisFrame(PlayerId()) end,
-        nil
+        nil,
+        0
     ) then end
 end
 
@@ -197,7 +201,8 @@ local function explosive_melee_burst()
     if withTimedEffect('explosive_melee_burst', 12000,
         function() notify('Explosive melee enabled for 12s') end,
         function() SetExplosiveMeleeThisFrame(PlayerId()) end,
-        nil
+        nil,
+        0
     ) then end
 end
 
@@ -205,7 +210,8 @@ local function fire_ammo_burst()
     if withTimedEffect('fire_ammo_burst', 12000,
         function() notify('Incendiary ammo enabled for 12s') end,
         function() SetFireAmmoThisFrame(PlayerId()) end,
-        nil
+        nil,
+        0
     ) then end
 end
 
@@ -358,7 +364,8 @@ local function no_hud_burst()
             HideHudComponentThisFrame(3)
             HideHudComponentThisFrame(4)
         end,
-        nil
+        nil,
+        0
     ) then end
 end
 
