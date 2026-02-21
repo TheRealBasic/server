@@ -6,6 +6,18 @@ local trollMenuOpen = false
 local lastDriverRadioStation = nil
 local lastRadioSyncSentAt = 0
 local eventToggleState = {}
+local buildModeActive = false
+local buildGridSnapEnabled = true
+local selectedBuildPropId = nil
+local selectedBuildPropModel = nil
+local buildGhostEntity = 0
+local buildHeightOffset = 0.0
+local buildPlacementTransform = {
+    position = vec3(0.0, 0.0, 0.0),
+    heading = 0.0,
+    pitch = 0.0,
+    roll = 0.0
+}
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -77,6 +89,135 @@ local function loadModel(model)
         Wait(0)
     end
     return HasModelLoaded(model)
+end
+
+local function getBuildMaxPlaceDistance()
+    local buildConfig = Config.BuildTool or {}
+    local maxDistance = tonumber(buildConfig.MaxPlaceDistance)
+
+    if not maxDistance and type(buildConfig.Snap) == 'table' then
+        maxDistance = tonumber(buildConfig.Snap.MaxPlaceDistance)
+    end
+
+    if not maxDistance or maxDistance <= 0.0 then
+        maxDistance = 25.0
+    end
+
+    return maxDistance
+end
+
+local function getGameplayCameraDirection()
+    local cameraRotation = GetGameplayCamRot(2)
+    local pitch = math.rad(cameraRotation.x)
+    local heading = math.rad(cameraRotation.z)
+    local cosPitch = math.cos(pitch)
+
+    return vec3(-math.sin(heading) * cosPitch, math.cos(heading) * cosPitch, math.sin(pitch))
+end
+
+local function raycastFromCamera(maxDistance)
+    local cameraCoord = GetGameplayCamCoord()
+    local cameraDirection = getGameplayCameraDirection()
+    local rayEnd = cameraCoord + (cameraDirection * maxDistance)
+    local rayHandle = StartShapeTestRay(cameraCoord.x, cameraCoord.y, cameraCoord.z, rayEnd.x, rayEnd.y, rayEnd.z, 1 + 16 + 32, PlayerPedId(), 7)
+    local _, hit, endCoords = GetShapeTestResult(rayHandle)
+
+    if hit == 1 then
+        return true, endCoords, cameraDirection
+    end
+
+    return false, rayEnd, cameraDirection
+end
+
+local function getDefaultBuildSelection()
+    local allowedModels = Config.BuildTool and Config.BuildTool.AllowedModels or nil
+    local modelCatalog = Config.BuildToolModelCatalog or {}
+    if type(allowedModels) == 'table' then
+        for _, category in pairs(allowedModels) do
+            if type(category) == 'table' and type(category.entries) == 'table' then
+                for _, entry in ipairs(category.entries) do
+                    local propId = entry and entry.id
+                    local catalogEntry = propId and modelCatalog[propId] or nil
+                    if type(catalogEntry) == 'table' and type(catalogEntry.model) == 'string' then
+                        return propId, joaat(catalogEntry.model)
+                    end
+                end
+            end
+        end
+    end
+
+    for propId, catalogEntry in pairs(modelCatalog) do
+        if type(catalogEntry) == 'table' and type(catalogEntry.model) == 'string' then
+            return propId, joaat(catalogEntry.model)
+        end
+    end
+
+    return nil, nil
+end
+
+local function deleteBuildGhostEntity()
+    if buildGhostEntity ~= 0 and DoesEntityExist(buildGhostEntity) then
+        DeleteEntity(buildGhostEntity)
+    end
+    buildGhostEntity = 0
+end
+
+local function ensureBuildGhostEntity()
+    if not selectedBuildPropModel then
+        return false
+    end
+
+    if buildGhostEntity ~= 0 and DoesEntityExist(buildGhostEntity) then
+        return true
+    end
+
+    if not loadModel(selectedBuildPropModel) then
+        notify('Build mode: failed to load selected prop model')
+        return false
+    end
+
+    local placementPosition = buildPlacementTransform.position
+    buildGhostEntity = CreateObjectNoOffset(selectedBuildPropModel, placementPosition.x, placementPosition.y, placementPosition.z, false, false, false)
+    if buildGhostEntity == 0 or not DoesEntityExist(buildGhostEntity) then
+        buildGhostEntity = 0
+        notify('Build mode: failed to create ghost prop')
+        return false
+    end
+
+    SetEntityAlpha(buildGhostEntity, 150, false)
+    SetEntityCollision(buildGhostEntity, false, false)
+    FreezeEntityPosition(buildGhostEntity, true)
+    SetEntityInvincible(buildGhostEntity, true)
+    SetEntityCompletelyDisableCollision(buildGhostEntity, true, false)
+    return true
+end
+
+local function setBuildModeState(enabled)
+    if enabled == buildModeActive then
+        return
+    end
+
+    buildModeActive = enabled
+    if buildModeActive then
+        if not selectedBuildPropId or not selectedBuildPropModel then
+            selectedBuildPropId, selectedBuildPropModel = getDefaultBuildSelection()
+        end
+
+        if not selectedBuildPropId or not selectedBuildPropModel then
+            notify('Build mode unavailable: no allowed build props configured')
+            buildModeActive = false
+            return
+        end
+
+        buildPlacementTransform.heading = GetEntityHeading(PlayerPedId())
+        buildPlacementTransform.pitch = 0.0
+        buildPlacementTransform.roll = 0.0
+        buildHeightOffset = 0.0
+        notify(('Build mode enabled (%s)'):format(selectedBuildPropId))
+    else
+        deleteBuildGhostEntity()
+        notify('Build mode disabled')
+    end
 end
 
 local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop, tickMs)
@@ -1391,6 +1532,8 @@ local function resetChaosState()
     for key in pairs(activeTimedEffects) do
         activeTimedEffects[key] = false
     end
+
+    setBuildModeState(false)
 end
 
 
@@ -2128,6 +2271,16 @@ RegisterNUICallback('setEventToggle', function(data, cb)
     cb({ ok = true })
 end)
 
+RegisterCommand('buildmode', function()
+    local buildEnabled = Config.BuildTool and Config.BuildTool.Enabled ~= false
+    if not buildEnabled then
+        notify('Build mode is disabled by server configuration')
+        return
+    end
+
+    setBuildModeState(not buildModeActive)
+end, false)
+
 RegisterCommand('chaosmenu', function()
     if menuOpen or trollMenuOpen then
         closeChaosMenu()
@@ -2148,6 +2301,97 @@ end, false)
 
 RegisterKeyMapping('chaosmenu', 'Open chaos event menu', 'keyboard', Config.Menu.OpenKey)
 RegisterKeyMapping('trollmenu', 'Open secret troll menu', 'keyboard', 'NUMPAD2')
+RegisterKeyMapping('buildmode', 'Toggle build mode', 'keyboard', (Config.BuildTool and Config.BuildTool.OpenKey) or 'F6')
+
+CreateThread(function()
+    while true do
+        if not buildModeActive then
+            Wait(300)
+        else
+            local maxDistance = getBuildMaxPlaceDistance()
+            local rayHit, rayCoords = raycastFromCamera(maxDistance)
+            local playerCoords = GetEntityCoords(PlayerPedId())
+            local target = rayCoords
+
+            if #(target - playerCoords) > maxDistance then
+                local dir = target - playerCoords
+                target = playerCoords + (dir / #(dir) * maxDistance)
+            end
+
+            local gridStep = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.GridStep) or 0.25
+            target = target + vec3(0.0, 0.0, buildHeightOffset)
+
+            if buildGridSnapEnabled then
+                target = vec3(
+                    math.floor((target.x / gridStep) + 0.5) * gridStep,
+                    math.floor((target.y / gridStep) + 0.5) * gridStep,
+                    math.floor((target.z / gridStep) + 0.5) * gridStep
+                )
+            end
+
+            if IsControlJustPressed(0, 174) then
+                local step = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.RotationStep) or 15.0
+                buildPlacementTransform.heading = buildPlacementTransform.heading - step
+            end
+
+            if IsControlJustPressed(0, 175) then
+                local step = tonumber(Config.BuildTool and Config.BuildTool.Snap and Config.BuildTool.Snap.RotationStep) or 15.0
+                buildPlacementTransform.heading = buildPlacementTransform.heading + step
+            end
+
+            if IsControlJustPressed(0, 15) then
+                buildHeightOffset = buildHeightOffset + gridStep
+                target = target + vec3(0.0, 0.0, gridStep)
+            end
+
+            if IsControlJustPressed(0, 14) then
+                buildHeightOffset = buildHeightOffset - gridStep
+                target = target - vec3(0.0, 0.0, gridStep)
+            end
+
+            if IsControlJustPressed(0, 47) then
+                buildGridSnapEnabled = not buildGridSnapEnabled
+                notify(('Build grid snap: %s'):format(buildGridSnapEnabled and 'ON' or 'OFF'))
+            end
+
+            buildPlacementTransform.position = target
+
+            if ensureBuildGhostEntity() then
+                SetEntityCoordsNoOffset(buildGhostEntity, target.x, target.y, target.z, false, false, false)
+                SetEntityRotation(buildGhostEntity, buildPlacementTransform.pitch, buildPlacementTransform.roll, buildPlacementTransform.heading, 2, true)
+
+                if IsControlJustPressed(0, 38) then
+                    TriggerServerEvent('chaos_mode:placePropRequest', {
+                        propId = selectedBuildPropId,
+                        model = selectedBuildPropModel,
+                        position = {
+                            x = buildPlacementTransform.position.x,
+                            y = buildPlacementTransform.position.y,
+                            z = buildPlacementTransform.position.z
+                        },
+                        heading = buildPlacementTransform.heading,
+                        pitch = buildPlacementTransform.pitch,
+                        roll = buildPlacementTransform.roll,
+                        gridSnap = buildGridSnapEnabled,
+                        rayHit = rayHit == true
+                    })
+                    notify(('Build prop placed request: %s'):format(selectedBuildPropId))
+                end
+            end
+
+            if IsControlJustPressed(0, 177) then
+                setBuildModeState(false)
+            end
+
+            DisableControlAction(0, 14, true)
+            DisableControlAction(0, 15, true)
+            DisableControlAction(0, 24, true)
+            DisableControlAction(0, 25, true)
+
+            Wait(0)
+        end
+    end
+end)
 
 CreateThread(function()
     while true do
