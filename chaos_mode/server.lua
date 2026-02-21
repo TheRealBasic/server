@@ -1,5 +1,23 @@
 local chaosEnabled = Config.Enabled
 
+local trollActions = {
+    'launch_up',
+    'spin_out',
+    'ragdoll_drop',
+    'ignite',
+    'strip_weapon',
+    'drain_armor',
+    'blur_vision',
+    'freeze_feet',
+    'drunk_walk',
+    'fake_explosion',
+    'seat_shuffle',
+    'stall_engine',
+    'burst_tires',
+    'teleport_back',
+    'reverse_controls'
+}
+
 local function validateConfig()
     local hasErrors = false
 
@@ -183,8 +201,67 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
     local src = source
     TriggerClientEvent('chaos_mode:menuData', src, {
         events = Config.EventPool,
-        players = getLobbyPlayers()
+        players = getLobbyPlayers(),
+        trollActions = trollActions
     })
+end)
+
+local function trollActionExists(actionName)
+    for _, listedAction in ipairs(trollActions) do
+        if listedAction == actionName then
+            return true
+        end
+    end
+
+    return false
+end
+
+RegisterNetEvent('chaos_mode:triggerSelectedTrollAction', function(payload)
+    local src = source
+
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local actionName = payload.actionName
+    local selectedPlayers = payload.players
+
+    if type(actionName) ~= 'string' or not trollActionExists(actionName) then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Troll', 'Invalid trolling action selected.' }
+        })
+        return
+    end
+
+    if type(selectedPlayers) ~= 'table' or #selectedPlayers == 0 then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Troll', 'Select at least one target player.' }
+        })
+        return
+    end
+
+    local online = {}
+    for _, playerSrc in ipairs(GetPlayers()) do
+        online[tonumber(playerSrc)] = true
+    end
+
+    local triggeredFor = 0
+    for _, playerId in ipairs(selectedPlayers) do
+        local numericPlayerId = tonumber(playerId)
+        if numericPlayerId and online[numericPlayerId] then
+            TriggerClientEvent('chaos_mode:runTrollAction', numericPlayerId, actionName)
+            triggeredFor = triggeredFor + 1
+        end
+    end
+
+    if triggeredFor == 0 then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Troll', 'No valid target players online.' }
+        })
+        return
+    end
+
+    print(('[chaos_mode] %s used troll action "%s" on %d player(s)'):format(GetPlayerName(src) or src, actionName, triggeredFor))
 end)
 
 RegisterNetEvent('chaos_mode:triggerSelectedEvent', function(payload)

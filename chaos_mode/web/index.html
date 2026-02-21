@@ -13,9 +13,25 @@
       <button id="closeBtn" type="button">✕</button>
     </header>
 
-    <section>
+    <section class="mode-tabs">
+      <button id="chaosTab" class="tab-btn active" type="button">Chaos</button>
+      <button id="trollTab" class="tab-btn" type="button">Secret Troll</button>
+    </section>
+
+    <section id="chaosPanel" class="panel">
       <label for="eventSelect">Event</label>
       <select id="eventSelect"></select>
+      <footer>
+        <button id="triggerBtn" type="button">Trigger Event</button>
+      </footer>
+    </section>
+
+    <section id="trollPanel" class="panel hidden">
+      <label for="trollActionSelect">Trolling Action</label>
+      <select id="trollActionSelect"></select>
+      <footer>
+        <button id="triggerTrollBtn" type="button">Do Troll Action</button>
+      </footer>
     </section>
 
     <section class="targets">
@@ -30,9 +46,6 @@
       <div id="playerList" class="player-list disabled"></div>
     </section>
 
-    <footer>
-      <button id="triggerBtn" type="button">Trigger Event</button>
-    </footer>
   </main>
 
   <script src="app.js"></script>

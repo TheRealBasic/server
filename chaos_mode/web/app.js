@@ -5,6 +5,12 @@ const specificPlayersRadio = document.getElementById('specificPlayers');
 const playerList = document.getElementById('playerList');
 const triggerBtn = document.getElementById('triggerBtn');
 const closeBtn = document.getElementById('closeBtn');
+const chaosTab = document.getElementById('chaosTab');
+const trollTab = document.getElementById('trollTab');
+const chaosPanel = document.getElementById('chaosPanel');
+const trollPanel = document.getElementById('trollPanel');
+const trollActionSelect = document.getElementById('trollActionSelect');
+const triggerTrollBtn = document.getElementById('triggerTrollBtn');
 
 const resourceName = typeof GetParentResourceName === 'function'
   ? GetParentResourceName()
@@ -12,7 +18,9 @@ const resourceName = typeof GetParentResourceName === 'function'
 
 const state = {
   events: [],
-  players: []
+  players: [],
+  trollActions: [],
+  mode: 'chaos'
 };
 
 function postNui(name, data = {}) {
@@ -58,6 +66,30 @@ function renderPlayers() {
   });
 }
 
+function renderTrollActions() {
+  trollActionSelect.innerHTML = '';
+  state.trollActions.forEach((actionName) => {
+    const option = document.createElement('option');
+    option.value = actionName;
+    option.textContent = actionName;
+    trollActionSelect.appendChild(option);
+  });
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  const trollMode = mode === 'troll';
+  chaosTab.classList.toggle('active', !trollMode);
+  trollTab.classList.toggle('active', trollMode);
+  chaosPanel.classList.toggle('hidden', trollMode);
+  trollPanel.classList.toggle('hidden', !trollMode);
+  allPlayersRadio.disabled = trollMode;
+  if (trollMode) {
+    specificPlayersRadio.checked = true;
+  }
+  updatePlayerListState();
+}
+
 function updatePlayerListState() {
   const useSpecific = specificPlayersRadio.checked;
   playerList.classList.toggle('disabled', !useSpecific);
@@ -78,11 +110,17 @@ window.addEventListener('message', (event) => {
     }
   }
 
+  if (data.action === 'setMode') {
+    setMode(data.mode === 'troll' ? 'troll' : 'chaos');
+  }
+
   if (data.action === 'setData') {
     state.events = Array.isArray(data.events) ? data.events : [];
     state.players = Array.isArray(data.players) ? data.players : [];
+    state.trollActions = Array.isArray(data.trollActions) ? data.trollActions : [];
     renderEvents();
     renderPlayers();
+    renderTrollActions();
     updatePlayerListState();
   }
 });
@@ -101,6 +139,20 @@ triggerBtn.addEventListener('click', async () => {
 
   await postNui('triggerEvent', { eventName, targetType, players });
 });
+
+triggerTrollBtn.addEventListener('click', async () => {
+  const actionName = trollActionSelect.value;
+  const players = getSelectedPlayers();
+
+  if (!actionName || !players.length) {
+    return;
+  }
+
+  await postNui('triggerTrollAction', { actionName, players });
+});
+
+chaosTab.addEventListener('click', () => setMode('chaos'));
+trollTab.addEventListener('click', () => setMode('troll'));
 
 closeBtn.addEventListener('click', async () => {
   await postNui('close');

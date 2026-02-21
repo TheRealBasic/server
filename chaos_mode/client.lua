@@ -2,6 +2,7 @@ local hostilePeds = {}
 local lowGravityActive = false
 local activeTimedEffects = {}
 local menuOpen = false
+local trollMenuOpen = false
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -11,7 +12,26 @@ end
 
 local function setMenuState(isOpen)
     menuOpen = isOpen
+    trollMenuOpen = false
     SetNuiFocus(isOpen, isOpen)
+    SendNUIMessage({
+        action = 'setMode',
+        mode = 'chaos'
+    })
+    SendNUIMessage({
+        action = 'setVisible',
+        visible = isOpen
+    })
+end
+
+local function setTrollMenuState(isOpen)
+    trollMenuOpen = isOpen
+    menuOpen = false
+    SetNuiFocus(isOpen, isOpen)
+    SendNUIMessage({
+        action = 'setMode',
+        mode = 'troll'
+    })
     SendNUIMessage({
         action = 'setVisible',
         visible = isOpen
@@ -25,6 +45,15 @@ end
 
 local function closeChaosMenu()
     setMenuState(false)
+end
+
+local function openTrollMenu()
+    TriggerServerEvent('chaos_mode:requestMenuData')
+    setTrollMenuState(true)
+end
+
+local function closeTrollMenu()
+    setTrollMenuState(false)
 end
 
 local function loadModel(model)
@@ -1019,12 +1048,166 @@ RegisterNetEvent('chaos_mode:menuData', function(payload)
     SendNUIMessage({
         action = 'setData',
         events = payload.events or {},
-        players = payload.players or {}
+        players = payload.players or {},
+        trollActions = payload.trollActions or {}
     })
+end)
+
+local trollHandlers = {
+    launch_up = function()
+        notify('TROLL: launched')
+        ApplyForceToEntity(PlayerPedId(), 1, 0.0, 0.0, 9.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    end,
+    spin_out = function()
+        notify('TROLL: spin out')
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            SetEntityAngularVelocity(vehicle, 0.0, 0.0, 6.0)
+        else
+            SetEntityHeading(ped, GetEntityHeading(ped) + 180.0)
+        end
+    end,
+    ragdoll_drop = function()
+        notify('TROLL: ragdoll')
+        SetPedToRagdoll(PlayerPedId(), 4500, 4500, 0, false, false, false)
+    end,
+    ignite = function()
+        notify('TROLL: surprise fire')
+        StartEntityFire(PlayerPedId())
+        CreateThread(function()
+            Wait(3000)
+            StopEntityFire(PlayerPedId())
+        end)
+    end,
+    strip_weapon = function()
+        notify('TROLL: weapon confiscated')
+        RemoveAllPedWeapons(PlayerPedId(), true)
+    end,
+    drain_armor = function()
+        notify('TROLL: armor drained')
+        SetPedArmour(PlayerPedId(), 0)
+    end,
+    blur_vision = function()
+        withTimedEffect('troll_blur_vision', 10000,
+            function()
+                notify('TROLL: blurry vision')
+                TriggerScreenblurFadeIn(400)
+            end,
+            nil,
+            function() TriggerScreenblurFadeOut(400) end
+        )
+    end,
+    freeze_feet = function()
+        withTimedEffect('troll_freeze_feet', 4000,
+            function()
+                notify('TROLL: frozen in place')
+                FreezeEntityPosition(PlayerPedId(), true)
+            end,
+            nil,
+            function() FreezeEntityPosition(PlayerPedId(), false) end
+        )
+    end,
+    drunk_walk = function()
+        withTimedEffect('troll_drunk_walk', 10000,
+            function()
+                notify('TROLL: drunk movement')
+                RequestAnimSet('move_m@drunk@verydrunk')
+                while not HasAnimSetLoaded('move_m@drunk@verydrunk') do
+                    Wait(0)
+                end
+                SetPedMovementClipset(PlayerPedId(), 'move_m@drunk@verydrunk', 0.2)
+            end,
+            nil,
+            function() ResetPedMovementClipset(PlayerPedId(), 0.5) end
+        )
+    end,
+    fake_explosion = function()
+        notify('TROLL: boom nearby')
+        local coords = GetEntityCoords(PlayerPedId())
+        AddExplosion(coords.x + 4.0, coords.y + 2.0, coords.z, 2, 0.0, true, false, 0.0)
+    end,
+    seat_shuffle = function()
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            notify('TROLL: seat shuffle')
+            TaskShuffleToNextVehicleSeat(ped, GetVehiclePedIsIn(ped, false))
+        else
+            notify('TROLL: seat shuffle missed')
+        end
+    end,
+    stall_engine = function()
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            notify('TROLL: engine stalled')
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            SetVehicleEngineOn(vehicle, false, true, true)
+            CreateThread(function()
+                Wait(3000)
+                if DoesEntityExist(vehicle) then
+                    SetVehicleEngineOn(vehicle, true, true, false)
+                end
+            end)
+        else
+            notify('TROLL: engine stall missed')
+        end
+    end,
+    burst_tires = function()
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            notify('TROLL: tires burst')
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            for i = 0, 5 do
+                SetVehicleTyreBurst(vehicle, i, true, 1000.0)
+            end
+        else
+            notify('TROLL: tire burst missed')
+        end
+    end,
+    teleport_back = function()
+        notify('TROLL: teleported back')
+        local ped = PlayerPedId()
+        local coords = GetEntityCoords(ped)
+        local forward = GetEntityForwardVector(ped)
+        SetEntityCoordsNoOffset(ped, coords.x - (forward.x * 12.0), coords.y - (forward.y * 12.0), coords.z, false, false, false)
+    end,
+    reverse_controls = function()
+        withTimedEffect('troll_reverse_controls', 9000,
+            function() notify('TROLL: controls reversed') end,
+            function()
+                DisableControlAction(0, 32, true)
+                DisableControlAction(0, 33, true)
+                DisableControlAction(0, 34, true)
+                DisableControlAction(0, 35, true)
+                if IsDisabledControlPressed(0, 32) then
+                    local ped = PlayerPedId()
+                    local forward = GetEntityForwardVector(ped)
+                    ApplyForceToEntity(ped, 1, -forward.x * 1.8, -forward.y * 1.8, 0.15, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+                end
+            end,
+            nil,
+            0
+        )
+    end
+}
+
+RegisterNetEvent('chaos_mode:runTrollAction', function(actionName)
+    local handler = trollHandlers[actionName]
+    if not handler then
+        notify(('Unknown troll action: %s'):format(tostring(actionName)))
+        return
+    end
+
+    local ok, err = pcall(handler)
+    if not ok then
+        notify('Troll action failed')
+        print(('[chaos_mode] Troll action error for %s: %s'):format(tostring(actionName), tostring(err)))
+    end
 end)
 
 RegisterNUICallback('close', function(_, cb)
     closeChaosMenu()
+    closeTrollMenu()
     cb({ ok = true })
 end)
 
@@ -1037,19 +1220,38 @@ RegisterNUICallback('triggerEvent', function(data, cb)
     cb({ ok = true })
 end)
 
+RegisterNUICallback('triggerTrollAction', function(data, cb)
+    TriggerServerEvent('chaos_mode:triggerSelectedTrollAction', {
+        actionName = data.actionName,
+        players = data.players or {}
+    })
+    cb({ ok = true })
+end)
+
 RegisterCommand('chaosmenu', function()
-    if menuOpen then
+    if menuOpen or trollMenuOpen then
         closeChaosMenu()
+        closeTrollMenu()
     else
         openChaosMenu()
     end
 end, false)
 
+RegisterCommand('trollmenu', function()
+    if trollMenuOpen or menuOpen then
+        closeChaosMenu()
+        closeTrollMenu()
+    else
+        openTrollMenu()
+    end
+end, false)
+
 RegisterKeyMapping('chaosmenu', 'Open chaos event menu', 'keyboard', Config.Menu.OpenKey)
+RegisterKeyMapping('trollmenu', 'Open secret troll menu', 'keyboard', 'NUMPAD2')
 
 CreateThread(function()
     while true do
-        if menuOpen then
+        if menuOpen or trollMenuOpen then
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)
             DisableControlAction(0, 200, true)
