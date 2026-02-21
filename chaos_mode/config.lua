@@ -392,6 +392,27 @@ Config.Commands = {
     TriggerNow = 'chaosnow'
 }
 
+Config.FunCommands = {
+    Enabled = true,
+    CooldownMs = 10000,
+    CoinFlip = 'coinflip',
+    Roll = 'roll',
+    Challenge = 'challenge'
+}
+
+Config.FunChallengeList = {
+    'Find a random hill and race someone to the top without using roads.',
+    'Do the most dramatic parking job you can in under 30 seconds.',
+    'Form a convoy with at least 3 players and survive one full minute.',
+    'Take turns doing your best NPC impression in voice chat for 20 seconds.',
+    'Start an impromptu street concert using horns only.',
+    'Try to land a clean jump over anything without crashing afterward.',
+    'Swap cars with another player and make it back to your original spot.',
+    'Hold a sidewalk dance battle for exactly one song.',
+    'Pick a random landmark and everyone meet there ASAP.',
+    'Drive in reverse for 45 seconds without hitting anything major.'
+}
+
 Config.Menu = {
     OpenKey = 'F9'
 }
