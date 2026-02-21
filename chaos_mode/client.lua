@@ -415,6 +415,383 @@ local function no_hud_burst()
     ) then end
 end
 
+
+local function moon_jump_mania()
+    if withTimedEffect('moon_jump_mania', 15000,
+        function() notify('Moon jump mania for 15s') end,
+        function() SetSuperJumpThisFrame(PlayerId()) end,
+        nil,
+        0
+    ) then end
+end
+
+local function chaos_fog()
+    if withTimedEffect('chaos_fog', 20000,
+        function()
+            notify('Chaos fog rolled in for 20s')
+            SetWeatherTypeOvertimePersist('FOGGY', 6.0)
+        end,
+        nil,
+        function()
+            ClearOverrideWeather()
+            ClearWeatherTypePersist()
+        end
+    ) then end
+end
+
+local function rainbow_car()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Rainbow failed: you are not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if withTimedEffect('rainbow_car', 12000,
+        function() notify('Rainbow car mode for 12s') end,
+        function()
+            SetVehicleCustomPrimaryColour(vehicle, math.random(0, 255), math.random(0, 255), math.random(0, 255))
+            SetVehicleCustomSecondaryColour(vehicle, math.random(0, 255), math.random(0, 255), math.random(0, 255))
+        end,
+        nil,
+        600
+    ) then end
+end
+
+local function vehicle_malfunction()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Malfunction failed: you are not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('Vehicle malfunction! Engine stalling')
+    SetVehicleEngineOn(vehicle, false, true, true)
+    CreateThread(function()
+        Wait(2500)
+        if DoesEntityExist(vehicle) then
+            SetVehicleEngineOn(vehicle, true, true, false)
+        end
+    end)
+end
+
+local function eject_from_vehicle()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Eject skipped: not in a vehicle')
+        return
+    end
+
+    notify('EJECT!')
+    TaskLeaveVehicle(ped, GetVehiclePedIsIn(ped, false), 4160)
+end
+
+local function brake_failure()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Brake failure failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if withTimedEffect('brake_failure', 9000,
+        function() notify('Brake failure for 9s') end,
+        function()
+            SetVehicleBrakeLights(vehicle, false)
+            SetVehicleForwardSpeed(vehicle, math.max(GetEntitySpeed(vehicle), 22.0))
+        end,
+        nil,
+        150
+    ) then end
+end
+
+local function horn_boost()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Horn boost failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('HONK BOOST!')
+    StartVehicleHorn(vehicle, 800, `HELDDOWN`, false)
+    SetVehicleForwardSpeed(vehicle, GetEntitySpeed(vehicle) + 18.0)
+end
+
+local function random_door_open()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Door chaos failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    local doorIndex = math.random(0, 5)
+    notify(('Vehicle door %d flung open'):format(doorIndex))
+    SetVehicleDoorOpen(vehicle, doorIndex, false, false)
+end
+
+local function tire_burst_all()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Tire burst failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('All tires burst!')
+    for i = 0, 7 do
+        SetVehicleTyreBurst(vehicle, i, true, 1000.0)
+    end
+end
+
+local function ignite_player_brief()
+    notify('You are on fire!')
+    StartEntityFire(PlayerPedId())
+    CreateThread(function()
+        Wait(3500)
+        StopEntityFire(PlayerPedId())
+    end)
+end
+
+local function slippery_feet()
+    if withTimedEffect('slippery_feet', 10000,
+        function() notify('Slippery feet for 10s') end,
+        function()
+            local ped = PlayerPedId()
+            if IsPedOnFoot(ped) then
+                SetPedToRagdoll(ped, 300, 300, 0, false, false, false)
+            end
+        end,
+        nil,
+        1500
+    ) then end
+end
+
+local function forced_melee()
+    if withTimedEffect('forced_melee', 15000,
+        function()
+            notify('Forced melee only for 15s')
+            SetCurrentPedWeapon(PlayerPedId(), `WEAPON_UNARMED`, true)
+        end,
+        function()
+            DisablePlayerFiring(PlayerId(), true)
+        end,
+        nil,
+        0
+    ) then end
+end
+
+local function disable_aim()
+    if withTimedEffect('disable_aim', 10000,
+        function() notify('Aiming disabled for 10s') end,
+        function()
+            DisableControlAction(0, 25, true)
+            DisableControlAction(0, 68, true)
+            DisableControlAction(0, 91, true)
+        end,
+        nil,
+        0
+    ) then end
+end
+
+local function butterfingers()
+    local ped = PlayerPedId()
+    notify('Butterfingers! Dropped weapon')
+    SetPedDropsWeapon(ped)
+end
+
+local function ammo_drain()
+    local ped = PlayerPedId()
+    local _, weapon = GetCurrentPedWeapon(ped, true)
+    notify('Ammo drained')
+    SetPedAmmo(ped, weapon, 0)
+end
+
+local function fake_cops()
+    notify('Fake cops called!')
+    SetFakeWantedLevel(math.random(2, 5))
+    CreateThread(function()
+        Wait(8000)
+        SetFakeWantedLevel(0)
+    end)
+end
+
+local function pacifist_mode()
+    if withTimedEffect('pacifist_mode', 10000,
+        function() notify('Pacifist mode for 10s') end,
+        function() DisablePlayerFiring(PlayerId(), true) end,
+        nil,
+        0
+    ) then end
+end
+
+local function screen_blur()
+    if withTimedEffect('screen_blur', 10000,
+        function()
+            notify('Screen blur for 10s')
+            TriggerScreenblurFadeIn(500)
+        end,
+        nil,
+        function()
+            TriggerScreenblurFadeOut(500)
+        end
+    ) then end
+end
+
+local function pixel_world()
+    if withTimedEffect('pixel_world', 12000,
+        function()
+            notify('Pixel world for 12s')
+            SetTimecycleModifier('NG_filmic04')
+            SetTimecycleModifierStrength(2.0)
+        end,
+        nil,
+        function()
+            ClearTimecycleModifier()
+        end
+    ) then end
+end
+
+local function random_camera_zoom()
+    local value = math.random(30, 110) / 100
+    notify(('Camera zoom chaos: %.2fx'):format(value))
+    SetFollowPedCamViewMode(math.random(0, 4))
+    SetGameplayCamRelativePitch((value - 0.7) * 20.0, 1.0)
+end
+
+local function drunk_walk()
+    if withTimedEffect('drunk_walk', 12000,
+        function()
+            notify('Drunk walk for 12s')
+            RequestAnimSet('move_m@drunk@verydrunk')
+            while not HasAnimSetLoaded('move_m@drunk@verydrunk') do Wait(0) end
+            SetPedMovementClipset(PlayerPedId(), 'move_m@drunk@verydrunk', 1.0)
+        end,
+        nil,
+        function()
+            ResetPedMovementClipset(PlayerPedId(), 0.5)
+        end
+    ) then end
+end
+
+local function npc_panic()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local handle, foundPed = FindFirstPed()
+    local success = true
+    local affected = 0
+
+    repeat
+        if DoesEntityExist(foundPed) and not IsPedAPlayer(foundPed) and #(GetEntityCoords(foundPed) - coords) < 45.0 then
+            TaskSmartFleePed(foundPed, ped, 120.0, 6000, false, false)
+            affected = affected + 1
+        end
+        success, foundPed = FindNextPed(handle)
+    until not success
+    EndFindPed(handle)
+
+    notify(('NPC panic triggered (%d nearby)'):format(affected))
+end
+
+local function explosion_ring()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    notify('Explosion ring!')
+    for i = 1, 8 do
+        local angle = (math.pi * 2) * (i / 8)
+        AddExplosion(coords.x + math.cos(angle) * 10.0, coords.y + math.sin(angle) * 10.0, coords.z, 2, 0.35, true, false, 0.1)
+    end
+end
+
+local function trampoline_steps()
+    if withTimedEffect('trampoline_steps', 9000,
+        function() notify('Trampoline steps for 9s') end,
+        function()
+            local ped = PlayerPedId()
+            if IsPedOnFoot(ped) and not IsPedInParachuteFreeFall(ped) then
+                ApplyForceToEntity(ped, 1, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+            end
+        end,
+        nil,
+        1000
+    ) then end
+end
+
+local function teleport_micro_shuffle()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local destination = coords + vec3(math.random(-8, 8), math.random(-8, 8), 0.0)
+    notify('Micro teleport shuffle!')
+    SetEntityCoordsNoOffset(ped, destination.x, destination.y, destination.z, false, false, false)
+end
+
+local function freeze_burst()
+    if withTimedEffect('freeze_burst', 5000,
+        function()
+            notify('Frozen in place for 5s')
+            FreezeEntityPosition(PlayerPedId(), true)
+        end,
+        nil,
+        function()
+            FreezeEntityPosition(PlayerPedId(), false)
+        end
+    ) then end
+end
+
+local function slow_motion_burst()
+    if withTimedEffect('slow_motion_burst', 6000,
+        function()
+            notify('Slow motion for 6s')
+            SetTimeScale(0.7)
+        end,
+        nil,
+        function()
+            SetTimeScale(1.0)
+        end
+    ) then end
+end
+
+local function vehicle_jump()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Vehicle jump failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('Vehicle jump!')
+    ApplyForceToEntity(vehicle, 1, 0.0, 0.0, 8.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+end
+
+local function confused_inputs()
+    if withTimedEffect('confused_inputs', 9000,
+        function() notify('Confused controls for 9s') end,
+        function()
+            DisableControlAction(0, 32, true)
+            DisableControlAction(0, 33, true)
+            DisableControlAction(0, 34, true)
+            DisableControlAction(0, 35, true)
+        end,
+        nil,
+        0
+    ) then end
+end
+
+local function cinematic_burst()
+    if withTimedEffect('cinematic_burst', 12000,
+        function()
+            notify('Cinematic burst for 12s')
+            SetCinematicModeActive(true)
+        end,
+        nil,
+        function()
+            SetCinematicModeActive(false)
+        end
+    ) then end
+end
+
 local function resetChaosState()
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
@@ -427,6 +804,12 @@ local function resetChaosState()
     SetArtificialLightsStateAffectsVehicles(true)
     SetPedInfiniteAmmoClip(playerPed, false)
     SetRunSprintMultiplierForPlayer(playerId, 1.0)
+    TriggerScreenblurFadeOut(0)
+    SetTimeScale(1.0)
+    FreezeEntityPosition(playerPed, false)
+    SetFakeWantedLevel(0)
+    ResetPedMovementClipset(playerPed, 0.5)
+    SetCinematicModeActive(false)
 
     lowGravityActive = false
 
@@ -460,7 +843,37 @@ local eventHandlers = {
     vehicle_slip = vehicle_slip,
     vehicle_boost = vehicle_boost,
     random_screen_filter = random_screen_filter,
-    no_hud_burst = no_hud_burst
+    no_hud_burst = no_hud_burst,
+    moon_jump_mania = moon_jump_mania,
+    chaos_fog = chaos_fog,
+    rainbow_car = rainbow_car,
+    vehicle_malfunction = vehicle_malfunction,
+    eject_from_vehicle = eject_from_vehicle,
+    brake_failure = brake_failure,
+    horn_boost = horn_boost,
+    random_door_open = random_door_open,
+    tire_burst_all = tire_burst_all,
+    ignite_player_brief = ignite_player_brief,
+    slippery_feet = slippery_feet,
+    forced_melee = forced_melee,
+    disable_aim = disable_aim,
+    butterfingers = butterfingers,
+    ammo_drain = ammo_drain,
+    fake_cops = fake_cops,
+    pacifist_mode = pacifist_mode,
+    screen_blur = screen_blur,
+    pixel_world = pixel_world,
+    random_camera_zoom = random_camera_zoom,
+    drunk_walk = drunk_walk,
+    npc_panic = npc_panic,
+    explosion_ring = explosion_ring,
+    trampoline_steps = trampoline_steps,
+    teleport_micro_shuffle = teleport_micro_shuffle,
+    freeze_burst = freeze_burst,
+    slow_motion_burst = slow_motion_burst,
+    vehicle_jump = vehicle_jump,
+    confused_inputs = confused_inputs,
+    cinematic_burst = cinematic_burst
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
