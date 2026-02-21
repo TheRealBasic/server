@@ -1462,7 +1462,37 @@ local eventHandlers = {
     sticky_bombs_party = sticky_bombs_party,
     blimp_shadow = blimp_shadow,
     rogue_wave = rogue_wave,
-    apocalypse_sky = apocalypse_sky
+    apocalypse_sky = apocalypse_sky,
+    banana_peel_panic = slippery_feet,
+    disco_inferno = dance_fever,
+    yoink_gun_lottery = random_weapon,
+    quantum_seatbelt = vehicle_jump,
+    gremlin_mechanics = vehicle_malfunction,
+    bass_boosted_horns = adhd_horns,
+    confetti_overdrive = confetti_bomb,
+    tiny_tornado = tornado_twist,
+    pogo_protocol = trampoline_steps,
+    rubber_band_lag = teleport_micro_shuffle,
+    cinema_quake = cinematic_burst,
+    gravity_io = gravity_flip,
+    meteor_snack_attack = meteor_shower,
+    panic_pinata = npc_panic,
+    fog_of_memes = chaos_fog,
+    nightclub_blackout = blackout_burst,
+    bouncy_bullets = explosive_ammo_burst,
+    blizzard_of_cones = spawnRandomObjects,
+    npc_karaoke = npc_moshpit,
+    car_sneeze = yeet_vehicle,
+    sandwich_timewarp = random_time_shift,
+    screaming_sky = glitch_scream,
+    reverse_moshpit = traffic_magnet,
+    loot_pinata = loot_rain,
+    cursed_zoomies = speed_burst,
+    fishtank_mode = tsunami_surge,
+    honkpocalypse = horn_boost,
+    sticky_floor_lite = freeze_burst,
+    dancequake = dance_fever,
+    brainlag_controls = confused_inputs
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
@@ -1684,6 +1714,90 @@ local trollHandlers = {
             nil,
             0
         )
+    end,
+    moonwalk = function()
+        withTimedEffect('troll_moonwalk', 9000,
+            function()
+                notify('TROLL: moonwalk curse')
+                RequestAnimSet('move_m@gangster@var_e')
+                while not HasAnimSetLoaded('move_m@gangster@var_e') do
+                    Wait(0)
+                end
+                SetPedMovementClipset(PlayerPedId(), 'move_m@gangster@var_e', 0.2)
+            end,
+            nil,
+            function() ResetPedMovementClipset(PlayerPedId(), 0.5) end
+        )
+    end,
+    random_trip = function()
+        notify('TROLL: random trip')
+        SetPedToRagdoll(PlayerPedId(), 2500, 2500, 0, false, false, false)
+    end,
+    invisible_brief = function()
+        withTimedEffect('troll_invisible_brief', 6000,
+            function()
+                notify('TROLL: now you see me')
+                SetEntityVisible(PlayerPedId(), false, false)
+            end,
+            nil,
+            function() SetEntityVisible(PlayerPedId(), true, false) end
+        )
+    end,
+    camera_whiplash = function()
+        withTimedEffect('troll_camera_whiplash', 7000,
+            function()
+                notify('TROLL: camera whiplash')
+                ShakeGameplayCam('LARGE_EXPLOSION_SHAKE', 1.0)
+                TriggerScreenblurFadeIn(250)
+            end,
+            nil,
+            function()
+                StopGameplayCamShaking(true)
+                TriggerScreenblurFadeOut(250)
+            end
+        )
+    end,
+    weapon_jam = function()
+        withTimedEffect('troll_weapon_jam', 7000,
+            function() notify('TROLL: weapon jam') end,
+            function()
+                DisablePlayerFiring(PlayerId(), true)
+                DisableControlAction(0, 24, true)
+                DisableControlAction(0, 25, true)
+            end,
+            nil,
+            0
+        )
+    end,
+    yeet_sideways = function()
+        notify('TROLL: yeeted sideways')
+        local ped = PlayerPedId()
+        local right = GetEntityRightVector(ped)
+        ApplyForceToEntity(ped, 1, right.x * 8.0, right.y * 8.0, 2.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    end,
+    clown_horn = function()
+        withTimedEffect('troll_clown_horn', 5000,
+            function() notify('TROLL: clown horn spam') end,
+            function()
+                local ped = PlayerPedId()
+                if IsPedInAnyVehicle(ped, false) then
+                    local vehicle = GetVehiclePedIsIn(ped, false)
+                    StartVehicleHorn(vehicle, 120, `HELDDOWN`, false)
+                end
+            end,
+            nil,
+            800
+        )
+    end,
+    sudden_brake = function()
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            notify('TROLL: sudden brake')
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            SetVehicleForwardSpeed(vehicle, 0.0)
+        else
+            notify('TROLL: sudden brake missed')
+        end
     end
 }
 
