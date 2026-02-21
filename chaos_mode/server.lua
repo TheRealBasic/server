@@ -26,6 +26,65 @@ local trollActions = {
     'sudden_brake'
 }
 
+
+local funCommandUsage = {}
+
+local function trimWhitespace(value)
+    return (value:gsub('^%s+', ''):gsub('%s+$', ''))
+end
+
+local function getFunCommandConfig()
+    local cfg = Config.FunCommands
+    if type(cfg) ~= 'table' or cfg.Enabled == false then
+        return nil
+    end
+
+    return {
+        cooldownMs = math.max(0, math.floor(tonumber(cfg.CooldownMs) or 0)),
+        coinFlip = tostring(cfg.CoinFlip or 'coinflip'),
+        roll = tostring(cfg.Roll or 'roll'),
+        challenge = tostring(cfg.Challenge or 'challenge')
+    }
+end
+
+local function canUseFunCommand(source, cooldownMs)
+    if source == 0 or cooldownMs <= 0 then
+        return true, 0
+    end
+
+    local now = GetGameTimer()
+    local nextAllowedAt = funCommandUsage[source] or 0
+    if now < nextAllowedAt then
+        return false, nextAllowedAt - now
+    end
+
+    funCommandUsage[source] = now + cooldownMs
+    return true, 0
+end
+
+local function sendFunMessage(source, message)
+    if source == 0 then
+        print('[fun] ' .. message)
+        return
+    end
+
+    TriggerClientEvent('chat:addMessage', source, {
+        args = { '^5Fun', message }
+    })
+end
+
+local function broadcastFunMessage(source, message)
+    if source == 0 then
+        print('[fun] ' .. message)
+        return
+    end
+
+    local name = GetPlayerName(source) or ('Player ' .. tostring(source))
+    TriggerClientEvent('chat:addMessage', -1, {
+        args = { '^5Fun', ('%s: %s'):format(name, message) }
+    })
+end
+
 local function validateConfig()
     local hasErrors = false
 
@@ -79,6 +138,28 @@ local function validateConfig()
             local numericWeight = tonumber(eventWeight)
             if not numericWeight or numericWeight < 0 then
                 configError(('EventWeights.%s'):format(eventName), 'must be a number greater than or equal to 0')
+            end
+        end
+    end
+
+
+    if Config.FunCommands ~= nil and type(Config.FunCommands) ~= 'table' then
+        configError('FunCommands', 'must be a table when set')
+    elseif type(Config.FunCommands) == 'table' then
+        if Config.FunCommands.CooldownMs ~= nil and (type(Config.FunCommands.CooldownMs) ~= 'number' or Config.FunCommands.CooldownMs < 0) then
+            configError('FunCommands.CooldownMs', 'must be a number greater than or equal to 0')
+        end
+    end
+
+    if Config.FunChallengeList ~= nil then
+        if type(Config.FunChallengeList) ~= 'table' then
+            configError('FunChallengeList', 'must be an array of strings when set')
+        else
+            for i, challenge in ipairs(Config.FunChallengeList) do
+                if type(challenge) ~= 'string' or trimWhitespace(challenge) == '' then
+                    configError(('FunChallengeList[%d]'):format(i), 'must be a non-empty string')
+                    break
+                end
             end
         end
     end
@@ -581,3 +662,62 @@ RegisterCommand(Config.Commands.TriggerNow, function(source)
         triggerChaosEvent({ chooseEvent(Config.EventPool, 'single') })
     end
 end, true)
+
+
+local funConfig = getFunCommandConfig()
+
+if funConfig then
+    RegisterCommand(funConfig.coinFlip, function(source)
+        local canUse, remainingMs = canUseFunCommand(source, funConfig.cooldownMs)
+        if not canUse then
+            sendFunMessage(source, ('Slow down! Try again in %.1fs.'):format(remainingMs / 1000))
+            return
+        end
+
+        local result = randomBetween(0, 1) == 0 and 'Heads' or 'Tails'
+        broadcastFunMessage(source, ('flipped a coin: ^3%s^7!'):format(result))
+    end, false)
+
+    RegisterCommand(funConfig.roll, function(source, args)
+        local canUse, remainingMs = canUseFunCommand(source, funConfig.cooldownMs)
+        if not canUse then
+            sendFunMessage(source, ('Slow down! Try again in %.1fs.'):format(remainingMs / 1000))
+            return
+        end
+
+        local maxRoll = tonumber(args[1]) or 100
+        maxRoll = math.floor(maxRoll)
+        if maxRoll < 2 then
+            sendFunMessage(source, 'Usage: /' .. funConfig.roll .. ' [max>=2]')
+            return
+        end
+
+        if maxRoll > 1000 then
+            maxRoll = 1000
+        end
+
+        local rolled = randomBetween(1, maxRoll)
+        broadcastFunMessage(source, ('rolled ^2%d^7 (1-%d)!'):format(rolled, maxRoll))
+    end, false)
+
+    RegisterCommand(funConfig.challenge, function(source)
+        local canUse, remainingMs = canUseFunCommand(source, funConfig.cooldownMs)
+        if not canUse then
+            sendFunMessage(source, ('Slow down! Try again in %.1fs.'):format(remainingMs / 1000))
+            return
+        end
+
+        local challenges = Config.FunChallengeList or {}
+        if #challenges == 0 then
+            sendFunMessage(source, 'No challenges configured right now.')
+            return
+        end
+
+        local challenge = trimWhitespace(randomFrom(challenges))
+        broadcastFunMessage(source, ('new sandbox challenge: ^3%s'):format(challenge))
+    end, false)
+
+    AddEventHandler('playerDropped', function()
+        funCommandUsage[source] = nil
+    end)
+end

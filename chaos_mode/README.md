@@ -20,6 +20,14 @@ A lightweight FiveM chaos addon for sandbox servers.
 - `chaos` → toggles scheduled chaos mode on/off
 - `chaosnow` → forces an immediate random chaos event
 
+
+## Commands (players)
+- `/coinflip` → flips a coin and announces the result in chat
+- `/roll [max]` → rolls a random number (default 1-100, capped at 1000)
+- `/challenge` → posts a random sandbox mini-challenge for everyone
+
+These fun commands are configurable in `Config.FunCommands` and `Config.FunChallengeList`.
+
 ## Config
 Edit `config.lua` to tune event pool, timing, spawn counts, weather set, and menu keybind.
 
