@@ -902,6 +902,352 @@ local function tsunami_surge()
     ) then end
 end
 
+
+local function meteor_shower()
+    local coords = GetEntityCoords(PlayerPedId())
+    notify('Meteor shower incoming!')
+    for i = 1, 12 do
+        local offset = vec3(math.random(-35, 35), math.random(-35, 35), math.random(18, 35))
+        AddExplosion(coords.x + offset.x, coords.y + offset.y, coords.z + offset.z, 29, 0.7, true, false, 1.0)
+        Wait(120)
+    end
+end
+
+local function lightning_strike()
+    local coords = GetEntityCoords(PlayerPedId())
+    notify('Lightning strike!')
+    SetWeatherTypeOvertimePersist('THUNDER', 1.5)
+    AddExplosion(coords.x + math.random(-4, 4), coords.y + math.random(-4, 4), coords.z, 38, 0.0, true, false, 0.0)
+end
+
+local function earthquake_wave()
+    if withTimedEffect('earthquake_wave', 10000,
+        function() notify('Earthquake wave for 10s') end,
+        function() ShakeGameplayCam('LARGE_EXPLOSION_SHAKE', 1.1) end,
+        function() StopGameplayCamShaking(true) end,
+        400
+    ) then end
+end
+
+local function volcanic_smog()
+    if withTimedEffect('volcanic_smog', 18000,
+        function()
+            notify('Volcanic smog chokes the skyline for 18s')
+            SetTimecycleModifier('NG_blackout')
+            SetTimecycleModifierStrength(0.9)
+        end,
+        nil,
+        function() ClearTimecycleModifier() end
+    ) then end
+end
+
+local function hailstorm()
+    notify('Hailstorm! Random impacts incoming')
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    for _ = 1, 10 do
+        ApplyDamageToPed(ped, math.random(1, 3), false)
+        AddExplosion(coords.x + math.random(-10, 10), coords.y + math.random(-10, 10), coords.z + 6.0, 0, 0.0, true, false, 0.0)
+        Wait(100)
+    end
+end
+
+local function wildfire_burst()
+    notify('Wildfire burst!')
+    local coords = GetEntityCoords(PlayerPedId())
+    for i = 1, 8 do
+        StartScriptFire(coords.x + math.random(-14, 14), coords.y + math.random(-14, 14), coords.z, 25, true)
+    end
+end
+
+local function tornado_twist()
+    if withTimedEffect('tornado_twist', 10000,
+        function() notify('Tornado twist for 10s') end,
+        function()
+            local ped = PlayerPedId()
+            ApplyForceToEntity(ped, 1, math.random(-30, 30) * 0.02, math.random(-30, 30) * 0.02, 1.7, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        end,
+        nil,
+        200
+    ) then end
+end
+
+local function sandstorm()
+    if withTimedEffect('sandstorm', 12000,
+        function()
+            notify('Sandstorm! Visibility nuked for 12s')
+            SetTimecycleModifier('spectator5')
+            SetTimecycleModifierStrength(1.0)
+        end,
+        nil,
+        function() ClearTimecycleModifier() end
+    ) then end
+end
+
+local function aftershock()
+    notify('Aftershock!')
+    SetPedToRagdoll(PlayerPedId(), 1800, 1800, 0, false, false, false)
+    ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', 0.9)
+    CreateThread(function()
+        Wait(1500)
+        StopGameplayCamShaking(true)
+    end)
+end
+
+local function flash_flood()
+    if withTimedEffect('flash_flood', 12000,
+        function()
+            notify('Flash flood surge for 12s')
+            SetWavesIntensity(3.2)
+            SetRainLevel(1.0)
+        end,
+        nil,
+        function()
+            SetWavesIntensity(1.0)
+            SetRainLevel(0.0)
+        end
+    ) then end
+end
+
+local function lava_floor()
+    if withTimedEffect('lava_floor', 12000,
+        function()
+            notify('Floor is lava for 12s!')
+            SetArtificialLightsState(true)
+        end,
+        function()
+            local ped = PlayerPedId()
+            if IsPedOnFoot(ped) then
+                ApplyDamageToPed(ped, 2, false)
+            end
+        end,
+        function() SetArtificialLightsState(false) end,
+        700
+    ) then end
+end
+
+local function comet_tail()
+    notify('Comet tail whiplash!')
+    local ped = PlayerPedId()
+    ApplyForceToEntity(ped, 1, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+end
+
+local function sharknado_warning()
+    notify('Sharknado warning: seek higher ground!')
+    SetWavesIntensity(3.8)
+    ShakeGameplayCam('LARGE_EXPLOSION_SHAKE', 0.4)
+    CreateThread(function()
+        Wait(8000)
+        SetWavesIntensity(1.0)
+        StopGameplayCamShaking(true)
+    end)
+end
+
+local function panic_evacuate()
+    notify('Panic evacuation! NPCs running wild')
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    for _, npc in ipairs(GetGamePool('CPed')) do
+        if npc ~= ped and not IsPedAPlayer(npc) then
+            local npcCoords = GetEntityCoords(npc)
+            if #(coords - npcCoords) < 60.0 then
+                TaskReactAndFleePed(npc, ped)
+            end
+        end
+    end
+end
+
+local function solar_flare()
+    if withTimedEffect('solar_flare', 8000,
+        function()
+            notify('Solar flare! Blinded for 8s')
+            TriggerScreenblurFadeIn(300)
+            ShakeGameplayCam('HAND_SHAKE', 0.35)
+        end,
+        nil,
+        function()
+            TriggerScreenblurFadeOut(300)
+            StopGameplayCamShaking(true)
+        end
+    ) then end
+end
+
+local function gravity_flip()
+    notify('Gravity flip!')
+    SetPedToRagdoll(PlayerPedId(), 2500, 2500, 0, false, false, false)
+    ApplyForceToEntity(PlayerPedId(), 1, 0.0, 0.0, 12.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+end
+
+local function adhd_horns()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Horn chaos skipped: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('Horn chaos engaged!')
+    for _ = 1, 8 do
+        StartVehicleHorn(vehicle, 300, `HELDDOWN`, false)
+        Wait(140)
+    end
+end
+
+local function ufo_blink()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    notify('UFO blink abduct... almost')
+    local destination = coords + vec3(math.random(-120, 120), math.random(-120, 120), math.random(10, 22))
+    SetEntityCoordsNoOffset(ped, destination.x, destination.y, destination.z, false, false, false)
+end
+
+local function loot_rain(data)
+    notify('Loot rain! Props falling from the sky')
+    local ped = PlayerPedId()
+    local baseCoords = GetEntityCoords(ped)
+    local spawned = {}
+    for i = 1, 15 do
+        local model = data.models[math.random(1, #data.models)]
+        if loadModel(model) then
+            local object = CreateObject(model, baseCoords.x + math.random(-12, 12), baseCoords.y + math.random(-12, 12), baseCoords.z + math.random(8, 22), true, true, false)
+            if DoesEntityExist(object) then
+                table.insert(spawned, object)
+            end
+            SetModelAsNoLongerNeeded(model)
+        end
+    end
+    cleanObjectsAfter(spawned, data.cleanupMs)
+end
+
+local function confetti_bomb()
+    notify('Confetti bomb! (explosions, but make it festive)')
+    local coords = GetEntityCoords(PlayerPedId())
+    for _ = 1, 14 do
+        AddExplosion(coords.x + math.random(-16, 16), coords.y + math.random(-16, 16), coords.z + 0.3, 0, 0.0, true, false, 0.0)
+    end
+end
+
+local function npc_moshpit()
+    notify('NPC moshpit formed!')
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    for _, npc in ipairs(GetGamePool('CPed')) do
+        if npc ~= ped and not IsPedAPlayer(npc) then
+            local npcCoords = GetEntityCoords(npc)
+            if #(coords - npcCoords) < 35.0 then
+                TaskCombatPed(npc, ped, 0, 16)
+            end
+        end
+    end
+end
+
+local function traffic_magnet()
+    notify('Traffic magnet! Vehicles pulled in')
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        local vehicleCoords = GetEntityCoords(vehicle)
+        if #(coords - vehicleCoords) < 70.0 then
+            local dir = coords - vehicleCoords
+            ApplyForceToEntity(vehicle, 1, dir.x * 0.05, dir.y * 0.05, 0.2, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        end
+    end
+end
+
+local function yeet_vehicle()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify('Yeet failed: not in a vehicle')
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    notify('Vehicle YEET!')
+    ApplyForceToEntity(vehicle, 1, 0.0, 0.0, 12.0, 2.5, 0.0, 0.0, 0, false, true, true, false, true)
+end
+
+local function reverse_daynight()
+    local hour = GetClockHours()
+    local flipped = (hour + 12) % 24
+    notify(('Time inverted to %02d:00'):format(flipped))
+    NetworkOverrideClockTime(flipped, 0, 0)
+end
+
+local function glitch_scream()
+    if withTimedEffect('glitch_scream', 9000,
+        function()
+            notify('Glitch scream mode for 9s')
+            ShakeGameplayCam('JOLT_SHAKE', 0.9)
+        end,
+        function()
+            DisableControlAction(0, 140, true)
+            DisableControlAction(0, 141, true)
+        end,
+        function() StopGameplayCamShaking(true) end,
+        0
+    ) then end
+end
+
+local function dance_fever()
+    if withTimedEffect('dance_fever', 10000,
+        function()
+            notify('Dance fever for 10s')
+            RequestAnimSet('move_m@hurry@a')
+            while not HasAnimSetLoaded('move_m@hurry@a') do
+                Wait(0)
+            end
+            SetPedMovementClipset(PlayerPedId(), 'move_m@hurry@a', 0.25)
+        end,
+        nil,
+        function() ResetPedMovementClipset(PlayerPedId(), 0.5) end
+    ) then end
+end
+
+local function sticky_bombs_party()
+    notify('Sticky bombs party!')
+    GiveWeaponToPed(PlayerPedId(), `WEAPON_STICKYBOMB`, 10, false, true)
+end
+
+local function blimp_shadow()
+    notify('Blimp shadow incoming... camera drama!')
+    SetGameplayCamRelativeHeading(GetGameplayCamRelativeHeading() + math.random(-45, 45))
+    SetGameplayCamRelativePitch(GetGameplayCamRelativePitch() + math.random(-10, 10), 1.0)
+end
+
+local function rogue_wave()
+    if withTimedEffect('rogue_wave', 10000,
+        function()
+            notify('Rogue wave slams the map for 10s')
+            SetWavesIntensity(3.5)
+            SetWindSpeed(8.0)
+        end,
+        function() ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', 0.25) end,
+        function()
+            SetWavesIntensity(1.0)
+            SetWindSpeed(0.0)
+            StopGameplayCamShaking(true)
+        end,
+        500
+    ) then end
+end
+
+local function apocalypse_sky()
+    if withTimedEffect('apocalypse_sky', 18000,
+        function()
+            notify('Apocalypse sky event for 18s')
+            SetWeatherTypeOvertimePersist('THUNDER', 2.0)
+            SetTimecycleModifier('REDMIST_blend')
+            SetTimecycleModifierStrength(0.7)
+        end,
+        nil,
+        function()
+            ClearWeatherTypePersist()
+            ClearOverrideWeather()
+            ClearTimecycleModifier()
+        end
+    ) then end
+end
+
 local function resetChaosState()
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
@@ -987,7 +1333,37 @@ local eventHandlers = {
     confused_inputs = confused_inputs,
     cinematic_burst = cinematic_burst,
     wrecking_punch = wrecking_punch,
-    tsunami_surge = tsunami_surge
+    tsunami_surge = tsunami_surge,
+    meteor_shower = meteor_shower,
+    lightning_strike = lightning_strike,
+    earthquake_wave = earthquake_wave,
+    volcanic_smog = volcanic_smog,
+    hailstorm = hailstorm,
+    wildfire_burst = wildfire_burst,
+    tornado_twist = tornado_twist,
+    sandstorm = sandstorm,
+    aftershock = aftershock,
+    flash_flood = flash_flood,
+    lava_floor = lava_floor,
+    comet_tail = comet_tail,
+    sharknado_warning = sharknado_warning,
+    panic_evacuate = panic_evacuate,
+    solar_flare = solar_flare,
+    gravity_flip = gravity_flip,
+    adhd_horns = adhd_horns,
+    ufo_blink = ufo_blink,
+    loot_rain = loot_rain,
+    confetti_bomb = confetti_bomb,
+    npc_moshpit = npc_moshpit,
+    traffic_magnet = traffic_magnet,
+    yeet_vehicle = yeet_vehicle,
+    reverse_daynight = reverse_daynight,
+    glitch_scream = glitch_scream,
+    dance_fever = dance_fever,
+    sticky_bombs_party = sticky_bombs_party,
+    blimp_shadow = blimp_shadow,
+    rogue_wave = rogue_wave,
+    apocalypse_sky = apocalypse_sky
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
