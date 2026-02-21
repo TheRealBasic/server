@@ -5,6 +5,8 @@ Config.MinIntervalMs = 30000
 Config.MaxIntervalMs = 30000
 Config.HostileNpcDurationMs = 30000
 Config.ObjectCleanupMs = 30000
+Config.VehicleRadioSyncEnabled = true
+Config.VehicleRadioSyncIntervalMs = 1200
 
 Config.ComboEnabled = true
 Config.ComboChance = 30 -- percent chance to trigger two events at once

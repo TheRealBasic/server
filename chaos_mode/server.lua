@@ -401,6 +401,39 @@ RegisterNetEvent('chaos_mode:requestHudState', function()
     broadcastHudState(source)
 end)
 
+
+local function isVehicleRadioSyncEnabled()
+    return Config.VehicleRadioSyncEnabled ~= false
+end
+
+RegisterNetEvent('chaos_mode:syncVehicleRadio', function(payload)
+    if not isVehicleRadioSyncEnabled() then
+        return
+    end
+
+    local src = source
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local vehicleNetId = tonumber(payload.vehicleNetId)
+    local stationName = tostring(payload.stationName or '')
+
+    if not vehicleNetId or vehicleNetId <= 0 then
+        return
+    end
+
+    if stationName == '' then
+        return
+    end
+
+    TriggerClientEvent('chaos_mode:applyVehicleRadioSync', -1, {
+        source = src,
+        vehicleNetId = vehicleNetId,
+        stationName = stationName
+    })
+end)
+
 local function trollActionExists(actionName)
     for _, listedAction in ipairs(trollActions) do
         if listedAction == actionName then

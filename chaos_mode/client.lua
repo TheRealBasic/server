@@ -3,6 +3,8 @@ local lowGravityActive = false
 local activeTimedEffects = {}
 local menuOpen = false
 local trollMenuOpen = false
+local lastDriverRadioStation = nil
+local lastRadioSyncSentAt = 0
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -1270,11 +1272,108 @@ local function resetChaosState()
     SetWindSpeed(0.0)
 
     lowGravityActive = false
+    lastDriverRadioStation = nil
 
     for key in pairs(activeTimedEffects) do
         activeTimedEffects[key] = false
     end
 end
+
+
+local function shouldSyncVehicleRadio()
+    return Config.VehicleRadioSyncEnabled ~= false
+end
+
+local function syncVehicleRadioWithDriver()
+    if not shouldSyncVehicleRadio() then
+        return
+    end
+
+    local intervalMs = tonumber(Config.VehicleRadioSyncIntervalMs) or 1200
+    if intervalMs < 250 then
+        intervalMs = 250
+    end
+
+    local now = GetGameTimer()
+    if now - lastRadioSyncSentAt < intervalMs then
+        return
+    end
+
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 or GetPedInVehicleSeat(vehicle, -1) ~= ped then
+        return
+    end
+
+    local stationName = GetPlayerRadioStationName()
+    if not stationName or stationName == '' then
+        return
+    end
+
+    local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
+    if vehicleNetId == 0 then
+        return
+    end
+
+    lastRadioSyncSentAt = now
+    TriggerServerEvent('chaos_mode:syncVehicleRadio', {
+        vehicleNetId = vehicleNetId,
+        stationName = stationName
+    })
+end
+
+CreateThread(function()
+    while true do
+        syncVehicleRadioWithDriver()
+        Wait(250)
+    end
+end)
+
+RegisterNetEvent('chaos_mode:applyVehicleRadioSync', function(payload)
+    if not shouldSyncVehicleRadio() then
+        return
+    end
+
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local localServerId = GetPlayerServerId(PlayerId())
+    if tonumber(payload.source) == localServerId then
+        return
+    end
+
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    local incomingVehicleNetId = tonumber(payload.vehicleNetId)
+    if not incomingVehicleNetId or incomingVehicleNetId <= 0 then
+        return
+    end
+
+    if NetworkGetNetworkIdFromEntity(vehicle) ~= incomingVehicleNetId then
+        return
+    end
+
+    if GetPedInVehicleSeat(vehicle, -1) == ped then
+        return
+    end
+
+    local stationName = tostring(payload.stationName or '')
+    if stationName == '' or stationName == lastDriverRadioStation then
+        return
+    end
+
+    SetVehRadioStation(vehicle, stationName)
+    lastDriverRadioStation = stationName
+end)
 
 local eventHandlers = {
     weather_shift = function(data) weatherShift(data.weather) end,
