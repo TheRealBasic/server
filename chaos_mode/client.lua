@@ -47,6 +47,20 @@ local function withTimedEffect(effectKey, durationMs, onStart, onTick, onStop, t
     return true
 end
 
+local function getEffectMeta(eventName, data)
+    local compatibility = data and data.eventCompatibility or nil
+    if type(compatibility) ~= 'table' then
+        return nil
+    end
+
+    local meta = compatibility[eventName]
+    if type(meta) ~= 'table' then
+        return nil
+    end
+
+    return meta
+end
+
 local function cleanObjectsAfter(objects, ms)
     CreateThread(function()
         Wait(ms)
@@ -450,11 +464,66 @@ local eventHandlers = {
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
-    local handler = eventHandlers[eventName]
-    if handler then
-        handler(data)
-    else
-        notify(('Unknown chaos event: %s'):format(eventName))
+    local eventNames = {}
+    if type(eventName) == 'table' then
+        eventNames = eventName
+    elseif type(eventName) == 'string' then
+        eventNames = { eventName }
+    end
+
+    if #eventNames == 0 then
+        notify('Unknown chaos payload received')
+        return
+    end
+
+    local displayNames = {}
+    local skippedEvents = {}
+
+    for _, currentEventName in ipairs(eventNames) do
+        local meta = getEffectMeta(currentEventName, data)
+        local effectKey = meta and meta.effectKey or currentEventName
+        if not activeTimedEffects[effectKey] then
+            local handler = eventHandlers[currentEventName]
+            if handler then
+                local ok, err = pcall(handler, data)
+                if ok then
+                    table.insert(displayNames, currentEventName)
+                    if meta and meta.durationMs then
+                        activeTimedEffects[effectKey] = true
+                        CreateThread(function()
+                            Wait(meta.durationMs)
+                            activeTimedEffects[effectKey] = false
+                        end)
+                    end
+                else
+                    notify(('Chaos handler failed: %s'):format(currentEventName))
+                    print(('[chaos_mode] Handler error for %s: %s'):format(currentEventName, tostring(err)))
+                end
+            else
+                notify(('Unknown chaos event: %s'):format(currentEventName))
+            end
+        else
+            table.insert(skippedEvents, currentEventName)
+        end
+    end
+
+    if #displayNames > 0 then
+        local maxDuration = 0
+        for _, dispatchedEventName in ipairs(displayNames) do
+            local meta = getEffectMeta(dispatchedEventName, data)
+            if meta and meta.durationMs and meta.durationMs > maxDuration then
+                maxDuration = meta.durationMs
+            end
+        end
+
+        if #displayNames > 1 then
+            local durationText = maxDuration > 0 and (' for %ds'):format(math.floor(maxDuration / 1000)) or ''
+            notify(('Combo chaos: %s + %s%s'):format(displayNames[1], displayNames[2], durationText))
+        end
+    end
+
+    if #skippedEvents > 0 then
+        notify(('Skipped overlapping effect(s): %s'):format(table.concat(skippedEvents, ', ')))
     end
 end)
 

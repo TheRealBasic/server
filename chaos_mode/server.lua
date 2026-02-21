@@ -25,6 +25,14 @@ local function validateConfig()
         configError('EventPool', 'must be a non-empty array')
     end
 
+    if type(Config.ComboEnabled) ~= 'boolean' then
+        configError('ComboEnabled', 'must be a boolean')
+    end
+
+    if type(Config.ComboChance) ~= 'number' or Config.ComboChance < 0 or Config.ComboChance > 100 then
+        configError('ComboChance', 'must be a number between 0 and 100')
+    end
+
     if type(Config.WeatherTypes) ~= 'table' or #Config.WeatherTypes == 0 then
         configError('WeatherTypes', 'must be a non-empty array')
     end
@@ -61,22 +69,63 @@ local function randomFrom(list)
     return list[randomBetween(1, #list)]
 end
 
-local function triggerChaosEvent(eventName)
-    TriggerClientEvent('chaos_mode:runEvent', -1, eventName, {
+local function chooseEvent()
+    return randomFrom(Config.EventPool)
+end
+
+local function getEventMeta(eventName)
+    local compatibility = Config.EventCompatibility or {}
+    return compatibility[eventName] or {}
+end
+
+local function eventsConflict(firstEvent, secondEvent)
+    if firstEvent == secondEvent then
+        return true
+    end
+
+    local firstMeta = getEventMeta(firstEvent)
+    local secondMeta = getEventMeta(secondEvent)
+
+    if firstMeta.blacklist and firstMeta.blacklist[secondEvent] then
+        return true
+    end
+
+    if secondMeta.blacklist and secondMeta.blacklist[firstEvent] then
+        return true
+    end
+
+    return false
+end
+
+local function chooseComboEvent()
+    local primaryEvent = chooseEvent()
+    local candidates = {}
+    for _, eventName in ipairs(Config.EventPool) do
+        if not eventsConflict(primaryEvent, eventName) then
+            candidates[#candidates + 1] = eventName
+        end
+    end
+
+    if #candidates == 0 then
+        return { primaryEvent }
+    end
+
+    return { primaryEvent, randomFrom(candidates) }
+end
+
+local function triggerChaosEvent(eventNames)
+    TriggerClientEvent('chaos_mode:runEvent', -1, eventNames, {
         weather = randomFrom(Config.WeatherTypes),
         hostileDuration = Config.HostileNpcDurationMs,
         objectMin = Config.RandomObjectCount.min,
         objectMax = Config.RandomObjectCount.max,
         spawnRadius = Config.SpawnRadius,
         cleanupMs = Config.ObjectCleanupMs,
-        models = Config.RandomObjectModels
+        models = Config.RandomObjectModels,
+        eventCompatibility = Config.EventCompatibility
     })
 
-    print(('[chaos_mode] Triggered event: %s'):format(eventName))
-end
-
-local function chooseEvent()
-    return randomFrom(Config.EventPool)
+    print(('[chaos_mode] Triggered event(s): %s'):format(table.concat(eventNames, ', ')))
 end
 
 if not validateConfig() then
@@ -92,7 +141,11 @@ CreateThread(function()
         if chaosEnabled then
             Wait(randomBetween(Config.MinIntervalMs, Config.MaxIntervalMs))
             if chaosEnabled then
-                triggerChaosEvent(chooseEvent())
+                if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
+                    triggerChaosEvent(chooseComboEvent())
+                else
+                    triggerChaosEvent({ chooseEvent() })
+                end
             end
         else
             Wait(2000)
@@ -120,5 +173,9 @@ RegisterCommand(Config.Commands.TriggerNow, function(source)
         return
     end
 
-    triggerChaosEvent(chooseEvent())
+    if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
+        triggerChaosEvent(chooseComboEvent())
+    else
+        triggerChaosEvent({ chooseEvent() })
+    end
 end, true)
