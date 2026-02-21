@@ -244,7 +244,27 @@ Config.EventPool = {
     'sticky_floor_lite',
     'dancequake',
     'brainlag_controls',
-    'singularity_vortex'
+    'singularity_vortex',
+    'perfect_dodge_matrix',
+    'parry_power',
+    'charged_branching',
+    'armor_breaker',
+    'hazard_kicker',
+    'air_combo_mania',
+    'momentum_strike',
+    'overdrive_mode',
+    'finisher_window',
+    'morale_break',
+    'shield_reactor',
+    'stance_shift',
+    'clash_counter',
+    'trap_spree',
+    'combat_weather',
+    'last_stand',
+    'pack_tactics',
+    'limb_cracker',
+    'arena_objectives',
+    'style_rank_rush'
 }
 
 Config.EventCompatibility = {
@@ -377,7 +397,50 @@ Config.EventCompatibility = {
             tiny_tornado = true,
             pogo_protocol = true
         }
-    }
+    },
+    perfect_dodge_matrix = { effectKey = 'combat_modifier', durationMs = 14000 },
+    parry_power = { effectKey = 'combat_modifier', durationMs = 14000 },
+    charged_branching = { effectKey = 'combat_modifier', durationMs = 14000 },
+    armor_breaker = { effectKey = 'combat_modifier', durationMs = 15000 },
+    hazard_kicker = { effectKey = 'combat_modifier', durationMs = 12000 },
+    air_combo_mania = { effectKey = 'combat_modifier', durationMs = 12000 },
+    momentum_strike = { effectKey = 'combat_modifier', durationMs = 12000 },
+    overdrive_mode = { effectKey = 'combat_modifier', durationMs = 15000 },
+    finisher_window = { effectKey = 'combat_modifier', durationMs = 12000 },
+    morale_break = { effectKey = 'combat_modifier', durationMs = 10000 },
+    shield_reactor = { effectKey = 'combat_modifier', durationMs = 12000 },
+    stance_shift = { effectKey = 'combat_modifier', durationMs = 15000 },
+    clash_counter = { effectKey = 'combat_modifier', durationMs = 10000 },
+    trap_spree = { effectKey = 'combat_modifier', durationMs = 12000 },
+    combat_weather = { effectKey = 'world_lighting', durationMs = 15000, blacklist = { weather_shift = true } },
+    last_stand = { effectKey = 'combat_modifier', durationMs = 20000 },
+    pack_tactics = { effectKey = 'combat_modifier', durationMs = 10000 },
+    limb_cracker = { effectKey = 'combat_modifier', durationMs = 12000 },
+    arena_objectives = { effectKey = 'combat_modifier', durationMs = 25000 },
+    style_rank_rush = { effectKey = 'combat_modifier', durationMs = 16000 }
+}
+
+Config.EventMeta = {
+    perfect_dodge_matrix = { label = 'Perfect Dodge Matrix', description = 'Frame-perfect dodges trigger short slow-motion and bonus sprint.', durationMs = 14000 },
+    parry_power = { label = 'Parry Power', description = 'Melee defense windows tighten and successful blocks shove enemies harder.', durationMs = 14000 },
+    charged_branching = { label = 'Charged Branching', description = 'Holding attack adds directional launch force for branching finishers.', durationMs = 14000 },
+    armor_breaker = { label = 'Armor Breaker', description = 'Weapon hits apply extra armor/vehicle deformation and stagger force.', durationMs = 15000 },
+    hazard_kicker = { label = 'Hazard Kicker', description = 'Nearby explosive props are highlighted and can be punted with strong force.', durationMs = 12000 },
+    air_combo_mania = { label = 'Air Combo Mania', description = 'Jump attacks gain extra lift to keep targets airborne.', durationMs = 12000 },
+    momentum_strike = { label = 'Momentum Strike', description = 'The faster you move, the harder your melee impacts hit.', durationMs = 12000 },
+    overdrive_mode = { label = 'Overdrive Mode', description = 'Damage output rises but your health slowly drains for risk/reward.', durationMs = 15000 },
+    finisher_window = { label = 'Finisher Window', description = 'Sustained hits unlock brief execute blasts and camera flair.', durationMs = 12000 },
+    morale_break = { label = 'Morale Break', description = 'Hostile NPCs panic and flee after nearby takedowns.', durationMs = 10000 },
+    shield_reactor = { label = 'Shield Reactor', description = 'Blocking while in vehicles creates recoil pulses and bumper force.', durationMs = 12000 },
+    stance_shift = { label = 'Stance Shift', description = 'Cycle between speed, balance, and power stances with changing buffs.', durationMs = 15000 },
+    clash_counter = { label = 'Clash Counter', description = 'Head-on collisions and melee clashes trigger shockwave knockback.', durationMs = 10000 },
+    trap_spree = { label = 'Trap Spree', description = 'Random trap props spawn around combat zones with warning sparks.', durationMs = 12000 },
+    combat_weather = { label = 'Combat Weather', description = 'Rapid weather swaps alter visibility and traction mid-fight.', durationMs = 15000 },
+    last_stand = { label = 'Last Stand', description = 'Fatal hits are negated once while the mode is active.', durationMs = 20000 },
+    pack_tactics = { label = 'Pack Tactics', description = 'Nearby hostile NPCs coordinate rushes and group pressure.', durationMs = 10000 },
+    limb_cracker = { label = 'Limb Cracker', description = 'Shots to legs/arms apply extra slow and recoil stagger.', durationMs = 12000 },
+    arena_objectives = { label = 'Arena Objectives', description = 'Temporary objective markers appear; hold them to gain armor bursts.', durationMs = 25000 },
+    style_rank_rush = { label = 'Style Rank Rush', description = 'Varied attacks build style rank and award periodic buffs.', durationMs = 16000 }
 }
 
 Config.WeatherTypes = {

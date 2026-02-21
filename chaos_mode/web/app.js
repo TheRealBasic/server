@@ -1,6 +1,7 @@
 const app = document.getElementById('app');
 const eventSelect = document.getElementById('eventSelect');
 const eventInfo = document.getElementById('eventInfo');
+const eventToggle = document.getElementById('eventToggle');
 const allPlayersRadio = document.getElementById('allPlayers');
 const specificPlayersRadio = document.getElementById('specificPlayers');
 const playerList = document.getElementById('playerList');
@@ -26,6 +27,8 @@ const state = {
   players: [],
   trollActions: [],
   trollActionMeta: {},
+  eventMeta: {},
+  eventToggles: {},
   mode: 'chaos',
   hud: {
     secondsRemaining: 30,
@@ -62,13 +65,23 @@ function describeMeta(id, meta) {
 function renderEvents() {
   eventSelect.innerHTML = '';
   state.events.forEach((eventName) => {
-    const meta = state.trollActionMeta[eventName] || {};
+    const meta = state.eventMeta[eventName] || {};
     const option = document.createElement('option');
     option.value = eventName;
     option.textContent = meta.label || eventName;
     eventSelect.appendChild(option);
   });
   updateEventInfo();
+  updateEventToggle();
+}
+
+function updateEventToggle() {
+  const selectedId = eventSelect.value;
+  if (!selectedId || !eventToggle) {
+    return;
+  }
+
+  eventToggle.checked = state.eventToggles[selectedId] !== false;
 }
 
 function renderPlayers() {
@@ -119,8 +132,9 @@ function updateEventInfo() {
     return;
   }
 
-  const meta = state.trollActionMeta[selectedId] || {};
+  const meta = state.eventMeta[selectedId] || {};
   eventInfo.textContent = describeMeta(selectedId, meta);
+  updateEventToggle();
 }
 
 function updateTrollActionInfo() {
@@ -217,10 +231,17 @@ window.addEventListener('message', (event) => {
     state.players = Array.isArray(data.players) ? data.players : [];
     state.trollActions = Array.isArray(data.trollActions) ? data.trollActions : [];
     state.trollActionMeta = data.trollActionMeta && typeof data.trollActionMeta === 'object' ? data.trollActionMeta : {};
+    state.eventMeta = data.eventMeta && typeof data.eventMeta === 'object' ? data.eventMeta : {};
+    state.eventToggles = data.eventToggles && typeof data.eventToggles === 'object' ? data.eventToggles : {};
     renderEvents();
     renderPlayers();
     renderTrollActions();
     updatePlayerListState();
+  }
+
+  if (data.action === 'setEventToggles') {
+    state.eventToggles = data.eventToggles && typeof data.eventToggles === 'object' ? data.eventToggles : {};
+    updateEventToggle();
   }
 });
 
@@ -228,6 +249,15 @@ allPlayersRadio.addEventListener('change', updatePlayerListState);
 specificPlayersRadio.addEventListener('change', updatePlayerListState);
 eventSelect.addEventListener('change', updateEventInfo);
 trollActionSelect.addEventListener('change', updateTrollActionInfo);
+eventToggle.addEventListener('change', async () => {
+  const eventName = eventSelect.value;
+  if (!eventName) {
+    return;
+  }
+
+  state.eventToggles[eventName] = eventToggle.checked;
+  await postNui('setEventToggle', { eventName, enabled: eventToggle.checked });
+});
 
 triggerBtn.addEventListener('click', async () => {
   const eventName = eventSelect.value;

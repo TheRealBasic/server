@@ -5,6 +5,7 @@ local menuOpen = false
 local trollMenuOpen = false
 local lastDriverRadioStation = nil
 local lastRadioSyncSentAt = 0
+local eventToggleState = {}
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -1306,6 +1307,63 @@ local function singularity_vortex()
     ) then end
 end
 
+local function combatModifierEvent(effectKey, label, durationMs, onTick)
+    if withTimedEffect(effectKey, durationMs,
+        function()
+            notify(label)
+            SetRunSprintMultiplierForPlayer(PlayerId(), 1.15)
+            SetPedCanRagdoll(PlayerPedId(), true)
+        end,
+        onTick,
+        function()
+            SetRunSprintMultiplierForPlayer(PlayerId(), 1.0)
+        end,
+        150
+    ) then end
+end
+
+local function perfect_dodge_matrix()
+    combatModifierEvent('perfect_dodge_matrix', 'Perfect Dodge Matrix online', 14000, function()
+        if IsPedRunning(PlayerPedId()) then
+            SetTimeScale(0.92)
+        else
+            SetTimeScale(1.0)
+        end
+    end)
+    CreateThread(function() Wait(14000) SetTimeScale(1.0) end)
+end
+
+local function parry_power() combatModifierEvent('parry_power', 'Parry Power activated', 14000) end
+local function charged_branching() combatModifierEvent('charged_branching', 'Charged Branching active', 14000) end
+local function armor_breaker() combatModifierEvent('armor_breaker', 'Armor Breaker online', 15000) end
+local function hazard_kicker() combatModifierEvent('hazard_kicker', 'Hazard Kicker active', 12000) end
+local function air_combo_mania() combatModifierEvent('air_combo_mania', 'Air Combo Mania launched', 12000) end
+local function momentum_strike() combatModifierEvent('momentum_strike', 'Momentum Strike engaged', 12000) end
+local function overdrive_mode()
+    combatModifierEvent('overdrive_mode', 'Overdrive Mode: high risk', 15000, function()
+        local ped = PlayerPedId()
+        local health = GetEntityHealth(ped)
+        if health > 120 and math.random(1, 5) == 1 then
+            SetEntityHealth(ped, health - 1)
+        end
+    end)
+end
+local function finisher_window() combatModifierEvent('finisher_window', 'Finisher Window open', 12000) end
+local function morale_break() combatModifierEvent('morale_break', 'Morale Break triggered', 10000) end
+local function shield_reactor() combatModifierEvent('shield_reactor', 'Shield Reactor primed', 12000) end
+local function stance_shift() combatModifierEvent('stance_shift', 'Stance Shift rotating', 15000) end
+local function clash_counter() combatModifierEvent('clash_counter', 'Clash Counter enabled', 10000) end
+local function trap_spree() combatModifierEvent('trap_spree', 'Trap Spree deployed', 12000) end
+local function combat_weather()
+    weatherShift(({'THUNDER', 'FOGGY', 'RAIN', 'OVERCAST'})[math.random(1, 4)])
+    combatModifierEvent('combat_weather', 'Combat Weather turbulence', 15000)
+end
+local function last_stand() combatModifierEvent('last_stand', 'Last Stand ready', 20000) end
+local function pack_tactics() combatModifierEvent('pack_tactics', 'Pack Tactics pressure', 10000) end
+local function limb_cracker() combatModifierEvent('limb_cracker', 'Limb Cracker precision', 12000) end
+local function arena_objectives() combatModifierEvent('arena_objectives', 'Arena Objectives live', 25000) end
+local function style_rank_rush() combatModifierEvent('style_rank_rush', 'Style Rank Rush active', 16000) end
+
 local function resetChaosState()
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
@@ -1549,7 +1607,27 @@ local eventHandlers = {
     honkpocalypse = horn_boost,
     sticky_floor_lite = freeze_burst,
     dancequake = dance_fever,
-    brainlag_controls = confused_inputs
+    brainlag_controls = confused_inputs,
+    perfect_dodge_matrix = perfect_dodge_matrix,
+    parry_power = parry_power,
+    charged_branching = charged_branching,
+    armor_breaker = armor_breaker,
+    hazard_kicker = hazard_kicker,
+    air_combo_mania = air_combo_mania,
+    momentum_strike = momentum_strike,
+    overdrive_mode = overdrive_mode,
+    finisher_window = finisher_window,
+    morale_break = morale_break,
+    shield_reactor = shield_reactor,
+    stance_shift = stance_shift,
+    clash_counter = clash_counter,
+    trap_spree = trap_spree,
+    combat_weather = combat_weather,
+    last_stand = last_stand,
+    pack_tactics = pack_tactics,
+    limb_cracker = limb_cracker,
+    arena_objectives = arena_objectives,
+    style_rank_rush = style_rank_rush
 }
 
 RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
@@ -1628,11 +1706,23 @@ RegisterNetEvent('chaos_mode:updateHud', function(payload)
 end)
 
 RegisterNetEvent('chaos_mode:menuData', function(payload)
+    eventToggleState = payload.eventToggles or {}
     SendNUIMessage({
         action = 'setData',
         events = payload.events or {},
         players = payload.players or {},
-        trollActions = payload.trollActions or {}
+        trollActions = payload.trollActions or {},
+        trollActionMeta = payload.trollActionMeta or {},
+        eventMeta = payload.eventMeta or {},
+        eventToggles = eventToggleState
+    })
+end)
+
+RegisterNetEvent('chaos_mode:eventTogglesUpdated', function(toggleMap)
+    eventToggleState = type(toggleMap) == 'table' and toggleMap or {}
+    SendNUIMessage({
+        action = 'setEventToggles',
+        eventToggles = eventToggleState
     })
 end)
 
@@ -1891,6 +1981,14 @@ RegisterNUICallback('triggerTrollAction', function(data, cb)
     TriggerServerEvent('chaos_mode:triggerSelectedTrollAction', {
         actionName = data.actionName,
         players = data.players or {}
+    })
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setEventToggle', function(data, cb)
+    TriggerServerEvent('chaos_mode:setEventToggle', {
+        eventName = data.eventName,
+        enabled = data.enabled == true
     })
     cb({ ok = true })
 end)
