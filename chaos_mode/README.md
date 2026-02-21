@@ -4,12 +4,14 @@ A lightweight FiveM chaos addon for sandbox servers.
 
 ## Features
 - Random timed chaos events
-- 55 total effects (5 original + 50 additional chaos effects, including 30 newly added chaos events)
+- 120+ total effects, including a new gameplay-focused combat expansion pack
 - Weather shifts
 - Hostile NPC rebellion waves
 - Random prop storms around players
 - Expanded movement, combat, camera, HUD, vehicle, world, and control disruption effects
 - **NEW: Singularity Vortex** that drags nearby vehicles and NPCs into a violent mini black hole around each player
+- **NEW: Gameplay Pack** with 20 additional combat-style events (perfect dodge matrix, parry power, stance shift, arena objectives, style rank rush, and more)
+- **NEW: Per-event options toggle** in the chaos menu so each event can be enabled/disabled at any time
 - In-game event trigger menu (default key: `F9`) with targeting for all players or selected lobby players
 
 ## Install

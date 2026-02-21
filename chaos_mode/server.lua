@@ -205,6 +205,7 @@ local recentHistoryWindow = math.max(0, math.floor(tonumber(Config.EventRecentHi
 local hudCurrentEvent = 'Waiting for next event'
 local hudPreviousEvents = {}
 local hudSecondsRemaining = math.max(1, math.floor((Config.MinIntervalMs or 30000) / 1000))
+local eventToggles = {}
 
 local function cloneArray(source)
     local copy = {}
@@ -234,6 +235,10 @@ local function broadcastHudState(target)
 end
 
 local function getEventWeight(eventName)
+    if eventToggles[eventName] == false then
+        return 0
+    end
+
     local configuredWeight = Config.EventWeights and Config.EventWeights[eventName]
     if configuredWeight == nil then
         return 1
@@ -245,6 +250,28 @@ local function getEventWeight(eventName)
     end
 
     return numericWeight
+end
+
+local function buildEnabledEventPool()
+    local enabled = {}
+    for _, eventName in ipairs(Config.EventPool) do
+        if eventToggles[eventName] ~= false then
+            enabled[#enabled + 1] = eventName
+        end
+    end
+    return enabled
+end
+
+local function setEventToggle(eventName, enabled)
+    eventToggles[eventName] = enabled == true
+end
+
+local function getEventToggleMap()
+    local toggles = {}
+    for _, eventName in ipairs(Config.EventPool) do
+        toggles[eventName] = eventToggles[eventName] ~= false
+    end
+    return toggles
 end
 
 local function countRecentOccurrences(eventName)
@@ -371,9 +398,18 @@ local function eventsConflict(firstEvent, secondEvent)
 end
 
 local function chooseComboEvent()
-    local primaryEvent = chooseEvent(Config.EventPool, 'combo-primary')
+    local enabledPool = buildEnabledEventPool()
+    if #enabledPool == 0 then
+        return nil
+    end
+
+    local primaryEvent = chooseEvent(enabledPool, 'combo-primary')
+    if not primaryEvent then
+        return nil
+    end
+
     local candidates = {}
-    for _, eventName in ipairs(Config.EventPool) do
+    for _, eventName in ipairs(enabledPool) do
         if not eventsConflict(primaryEvent, eventName) then
             candidates[#candidates + 1] = eventName
         end
@@ -439,6 +475,10 @@ if not validateConfig() then
     return
 end
 
+for _, eventName in ipairs(Config.EventPool) do
+    eventToggles[eventName] = true
+end
+
 CreateThread(function()
     math.randomseed(os.time())
 
@@ -464,10 +504,19 @@ CreateThread(function()
 
             if chaosEnabled then
                 hudSecondsRemaining = math.max(1, math.ceil(waitMs / 1000))
-                if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
-                    triggerChaosEvent(chooseComboEvent())
-                else
-                    triggerChaosEvent({ chooseEvent(Config.EventPool, 'single') })
+                local enabledPool = buildEnabledEventPool()
+                if #enabledPool > 0 then
+                    if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
+                        local combo = chooseComboEvent()
+                        if combo and #combo > 0 then
+                            triggerChaosEvent(combo)
+                        end
+                    else
+                        local chosen = chooseEvent(enabledPool, 'single')
+                        if chosen then
+                            triggerChaosEvent({ chosen })
+                        end
+                    end
                 end
             end
         else
@@ -482,7 +531,9 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
         events = Config.EventPool,
         players = getLobbyPlayers(),
         trollActions = trollActions,
-        trollActionMeta = Config.TrollActionMeta or {}
+        trollActionMeta = Config.TrollActionMeta or {},
+        eventMeta = Config.EventMeta or {},
+        eventToggles = getEventToggleMap()
     })
 end)
 
@@ -599,6 +650,13 @@ RegisterNetEvent('chaos_mode:triggerSelectedEvent', function(payload)
         return
     end
 
+    if eventToggles[eventName] == false then
+        TriggerClientEvent('chat:addMessage', src, {
+            args = { '^1Chaos', ('Event "%s" is disabled in options.'):format(eventName) }
+        })
+        return
+    end
+
     if targetType == 'all' then
         TriggerClientEvent('chaos_mode:runEvent', -1, { eventName }, createEventData())
         print(('[chaos_mode] %s triggered event "%s" for all players'):format(GetPlayerName(src) or src, eventName))
@@ -636,6 +694,27 @@ RegisterNetEvent('chaos_mode:triggerSelectedEvent', function(payload)
     print(('[chaos_mode] %s triggered event "%s" for %d player(s)'):format(GetPlayerName(src) or src, eventName, triggeredFor))
 end)
 
+RegisterNetEvent('chaos_mode:setEventToggle', function(payload)
+    local src = source
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local eventName = tostring(payload.eventName or '')
+    local enabled = payload.enabled == true
+    if eventName == '' or not eventExists(eventName) then
+        return
+    end
+
+    setEventToggle(eventName, enabled)
+
+    local toggleMap = getEventToggleMap()
+    TriggerClientEvent('chaos_mode:eventTogglesUpdated', -1, toggleMap)
+
+    local actor = GetPlayerName(src) or ('Player ' .. tostring(src))
+    print(('[chaos_mode] %s set "%s" %s'):format(actor, eventName, enabled and 'ENABLED' or 'DISABLED'))
+end)
+
 RegisterCommand(Config.Commands.Toggle, function(source)
     if source ~= 0 then
         TriggerClientEvent('chat:addMessage', source, {
@@ -656,10 +735,22 @@ RegisterCommand(Config.Commands.TriggerNow, function(source)
         return
     end
 
+    local enabledPool = buildEnabledEventPool()
+    if #enabledPool == 0 then
+        print('[chaos_mode] No enabled events available to trigger.')
+        return
+    end
+
     if Config.ComboEnabled and randomBetween(1, 100) <= Config.ComboChance then
-        triggerChaosEvent(chooseComboEvent())
+        local combo = chooseComboEvent()
+        if combo and #combo > 0 then
+            triggerChaosEvent(combo)
+        end
     else
-        triggerChaosEvent({ chooseEvent(Config.EventPool, 'single') })
+        local chosen = chooseEvent(enabledPool, 'single')
+        if chosen then
+            triggerChaosEvent({ chosen })
+        end
     end
 end, true)
 
