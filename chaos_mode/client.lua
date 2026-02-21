@@ -18,6 +18,7 @@ local buildPlacementTransform = {
     pitch = 0.0,
     roll = 0.0
 }
+local buildPlacementValid = false
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -120,13 +121,13 @@ local function raycastFromCamera(maxDistance)
     local cameraDirection = getGameplayCameraDirection()
     local rayEnd = cameraCoord + (cameraDirection * maxDistance)
     local rayHandle = StartShapeTestRay(cameraCoord.x, cameraCoord.y, cameraCoord.z, rayEnd.x, rayEnd.y, rayEnd.z, 1 + 16 + 32, PlayerPedId(), 7)
-    local _, hit, endCoords = GetShapeTestResult(rayHandle)
+    local _, hit, endCoords, surfaceNormal = GetShapeTestResultIncludingMaterial(rayHandle)
 
     if hit == 1 then
-        return true, endCoords, cameraDirection
+        return true, endCoords, cameraDirection, surfaceNormal
     end
 
-    return false, rayEnd, cameraDirection
+    return false, rayEnd, cameraDirection, nil
 end
 
 local function getDefaultBuildSelection()
@@ -157,6 +158,7 @@ end
 
 local function deleteBuildGhostEntity()
     if buildGhostEntity ~= 0 and DoesEntityExist(buildGhostEntity) then
+        SetEntityDrawOutline(buildGhostEntity, false)
         DeleteEntity(buildGhostEntity)
     end
     buildGhostEntity = 0
@@ -189,6 +191,99 @@ local function ensureBuildGhostEntity()
     FreezeEntityPosition(buildGhostEntity, true)
     SetEntityInvincible(buildGhostEntity, true)
     SetEntityCompletelyDisableCollision(buildGhostEntity, true, false)
+    SetEntityDrawOutline(buildGhostEntity, true)
+    SetEntityDrawOutlineColor(255, 90, 90, 150)
+    return true
+end
+
+local function setBuildGhostValidity(valid)
+    buildPlacementValid = valid == true
+
+    if buildGhostEntity == 0 or not DoesEntityExist(buildGhostEntity) then
+        return
+    end
+
+    if buildPlacementValid then
+        SetEntityDrawOutlineColor(90, 255, 140, 160)
+        SetEntityAlpha(buildGhostEntity, 165, false)
+    else
+        SetEntityDrawOutlineColor(255, 90, 90, 160)
+        SetEntityAlpha(buildGhostEntity, 130, false)
+    end
+end
+
+local function setSelectedBuildProp(propId, modelHash)
+    if not propId or not modelHash then
+        selectedBuildPropId = nil
+        selectedBuildPropModel = nil
+        deleteBuildGhostEntity()
+        return false
+    end
+
+    if selectedBuildPropId == propId and selectedBuildPropModel == modelHash then
+        return true
+    end
+
+    selectedBuildPropId = propId
+    selectedBuildPropModel = modelHash
+    deleteBuildGhostEntity()
+    return true
+end
+
+local function isBuildAreaOverlapping(target, model)
+    local minDim, maxDim = GetModelDimensions(model)
+    local radius = math.max(1.0, math.max(maxDim.x - minDim.x, maxDim.y - minDim.y) * 0.6)
+    local targetZ = target.z + ((maxDim.z - minDim.z) * 0.5)
+
+    if IsPositionOccupied(target.x, target.y, targetZ, radius, false, true, true, false, false, 0, false) then
+        return true
+    end
+
+    local poolNames = { 'CVehicle', 'CPed', 'CObject' }
+    for _, poolName in ipairs(poolNames) do
+        local pool = GetGamePool(poolName)
+        for i = 1, #pool do
+            local entity = pool[i]
+            if entity ~= buildGhostEntity and entity ~= PlayerPedId() and DoesEntityExist(entity) then
+                if #(GetEntityCoords(entity) - target) <= radius then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+local function validateBuildPlacement(target, rayHit, surfaceNormal, maxDistance)
+    if not selectedBuildPropModel then
+        return false
+    end
+
+    if rayHit ~= true then
+        return false
+    end
+
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    if #(target - playerCoords) > maxDistance then
+        return false
+    end
+
+    local maxSlope = tonumber(Config.BuildTool and Config.BuildTool.MaxSlopeDegrees) or 35.0
+    if surfaceNormal then
+        local clampedZ = math.max(-1.0, math.min(1.0, surfaceNormal.z))
+        local slope = math.deg(math.acos(clampedZ))
+        if slope > maxSlope then
+            return false
+        end
+    else
+        return false
+    end
+
+    if isBuildAreaOverlapping(target, selectedBuildPropModel) then
+        return false
+    end
+
     return true
 end
 
@@ -200,7 +295,8 @@ local function setBuildModeState(enabled)
     buildModeActive = enabled
     if buildModeActive then
         if not selectedBuildPropId or not selectedBuildPropModel then
-            selectedBuildPropId, selectedBuildPropModel = getDefaultBuildSelection()
+            local defaultId, defaultModel = getDefaultBuildSelection()
+            setSelectedBuildProp(defaultId, defaultModel)
         end
 
         if not selectedBuildPropId or not selectedBuildPropModel then
@@ -213,9 +309,11 @@ local function setBuildModeState(enabled)
         buildPlacementTransform.pitch = 0.0
         buildPlacementTransform.roll = 0.0
         buildHeightOffset = 0.0
+        buildPlacementValid = false
         notify(('Build mode enabled (%s)'):format(selectedBuildPropId))
     else
         deleteBuildGhostEntity()
+        buildPlacementValid = false
         notify('Build mode disabled')
     end
 end
@@ -1838,6 +1936,18 @@ RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
 end)
 
 
+RegisterNetEvent('chaos_mode:setBuildSelection', function(propId)
+    local catalogEntry = propId and Config.BuildToolModelCatalog and Config.BuildToolModelCatalog[propId] or nil
+    local modelHash = catalogEntry and catalogEntry.model and joaat(catalogEntry.model) or nil
+
+    if not setSelectedBuildProp(propId, modelHash) then
+        notify('Build prop selection cleared')
+        return
+    end
+
+    notify(('Build prop selected: %s'):format(propId))
+end)
+
 RegisterNetEvent('chaos_mode:updateHud', function(payload)
     payload = payload or {}
     SendNUIMessage({
@@ -2271,6 +2381,21 @@ RegisterNUICallback('setEventToggle', function(data, cb)
     cb({ ok = true })
 end)
 
+RegisterNUICallback('setBuildSelection', function(data, cb)
+    local propId = type(data) == 'table' and data.propId or nil
+    local catalogEntry = propId and Config.BuildToolModelCatalog and Config.BuildToolModelCatalog[propId] or nil
+    local modelHash = catalogEntry and catalogEntry.model and joaat(catalogEntry.model) or nil
+    local ok = setSelectedBuildProp(propId, modelHash)
+
+    if ok then
+        notify(('Build prop selected: %s'):format(propId))
+    else
+        notify('Build prop selection cleared')
+    end
+
+    cb({ ok = ok })
+end)
+
 RegisterCommand('buildmode', function()
     local buildEnabled = Config.BuildTool and Config.BuildTool.Enabled ~= false
     if not buildEnabled then
@@ -2309,7 +2434,7 @@ CreateThread(function()
             Wait(300)
         else
             local maxDistance = getBuildMaxPlaceDistance()
-            local rayHit, rayCoords = raycastFromCamera(maxDistance)
+            local rayHit, rayCoords, _, surfaceNormal = raycastFromCamera(maxDistance)
             local playerCoords = GetEntityCoords(PlayerPedId())
             local target = rayCoords
 
@@ -2356,11 +2481,14 @@ CreateThread(function()
 
             buildPlacementTransform.position = target
 
+            local placementValid = validateBuildPlacement(target, rayHit, surfaceNormal, maxDistance)
+
             if ensureBuildGhostEntity() then
                 SetEntityCoordsNoOffset(buildGhostEntity, target.x, target.y, target.z, false, false, false)
                 SetEntityRotation(buildGhostEntity, buildPlacementTransform.pitch, buildPlacementTransform.roll, buildPlacementTransform.heading, 2, true)
+                setBuildGhostValidity(placementValid)
 
-                if IsControlJustPressed(0, 38) then
+                if placementValid and IsControlJustPressed(0, 38) then
                     TriggerServerEvent('chaos_mode:placePropRequest', {
                         propId = selectedBuildPropId,
                         model = selectedBuildPropModel,
