@@ -189,6 +189,55 @@ local function isRotationInBounds(pitch, roll, heading)
     return within(pitch, rotationLimits.pitch) and within(roll, rotationLimits.roll) and within(heading, rotationLimits.heading)
 end
 
+local function getEntityFromNetId(netId)
+    local numericNetId = tonumber(netId)
+    if not numericNetId or numericNetId <= 0 then
+        return nil
+    end
+
+    if not NetworkDoesNetworkIdExist(numericNetId) then
+        return nil
+    end
+
+    local entity = NetworkGetEntityFromNetworkId(numericNetId)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then
+        return nil
+    end
+
+    return entity
+end
+
+local function getAttachData(payload)
+    if type(payload) ~= 'table' then
+        return nil
+    end
+
+    local targetNetId = tonumber(payload.targetNetId)
+    if not targetNetId or targetNetId <= 0 then
+        return nil
+    end
+
+    local offset = getNumericVector3(payload.offset)
+    local rotation = getNumericVector3(payload.rotation)
+    if not offset or not rotation then
+        return nil
+    end
+
+    rotation.x = sanitizeRotation(rotation.x)
+    rotation.y = sanitizeRotation(rotation.y)
+    rotation.z = sanitizeRotation(rotation.z)
+
+    if not rotation.x or not rotation.y or not rotation.z then
+        return nil
+    end
+
+    return {
+        targetNetId = targetNetId,
+        offset = offset,
+        rotation = rotation
+    }
+end
+
 local function removePlacedProp(netId, reason)
     local propData = placedProps[netId]
     if not propData then
@@ -237,7 +286,9 @@ local function getPlacedPropSnapshot()
             position = propData.position,
             heading = propData.heading,
             pitch = propData.pitch,
-            roll = propData.roll
+            roll = propData.roll,
+            placementMode = propData.placementMode,
+            attach = propData.attach
         }
     end
     return snapshot
@@ -778,9 +829,21 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
     local heading = sanitizeRotation(payload.heading)
     local pitch = sanitizeRotation(payload.pitch)
     local roll = sanitizeRotation(payload.roll)
+    local placementMode = tostring(payload.placementMode or 'world')
+    local attachData = placementMode == 'attach' and getAttachData(payload.attach) or nil
+
+    if placementMode ~= 'world' and placementMode ~= 'attach' then
+        sendBuildMessage(src, 'Unknown placement mode.')
+        return
+    end
 
     if not model or not position or not heading or not pitch or not roll then
         sendBuildMessage(src, 'Invalid prop placement data.')
+        return
+    end
+
+    if placementMode == 'attach' and not attachData then
+        sendBuildMessage(src, 'Invalid attachment payload.')
         return
     end
 
@@ -820,7 +883,47 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
 
     SetEntityHeading(object, heading)
     SetEntityRotation(object, pitch, roll, heading, 2, true)
-    FreezeEntityPosition(object, true)
+
+    if placementMode == 'attach' then
+        local attachTarget = getEntityFromNetId(attachData.targetNetId)
+        if not attachTarget then
+            DeleteEntity(object)
+            sendBuildMessage(src, 'Attachment target no longer exists.')
+            return
+        end
+
+        local ownerPed = GetPlayerPed(src)
+        if ownerPed and ownerPed ~= 0 and DoesEntityExist(ownerPed) then
+            local ownerCoords = GetEntityCoords(ownerPed)
+            local targetCoords = GetEntityCoords(attachTarget)
+            local maxDistance = tonumber(buildConfig.MaxPlaceDistance) or tonumber(buildConfig.Snap and buildConfig.Snap.MaxPlaceDistance) or 25.0
+            if #(ownerCoords - targetCoords) > (maxDistance + 5.0) then
+                DeleteEntity(object)
+                sendBuildMessage(src, 'Attachment target is too far away.')
+                return
+            end
+        end
+
+        AttachEntityToEntity(
+            object,
+            attachTarget,
+            0,
+            attachData.offset.x,
+            attachData.offset.y,
+            attachData.offset.z,
+            attachData.rotation.x,
+            attachData.rotation.y,
+            attachData.rotation.z,
+            false,
+            false,
+            true,
+            false,
+            2,
+            true
+        )
+    else
+        FreezeEntityPosition(object, true)
+    end
 
     local netId = NetworkGetNetworkIdFromEntity(object)
     if not netId or netId <= 0 then
@@ -839,7 +942,9 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
         heading = heading,
         pitch = pitch,
         roll = roll,
-        createdAt = os.time()
+        createdAt = os.time(),
+        placementMode = placementMode,
+        attach = attachData
     }
     adjustPlayerPropCount(src, 1)
 
@@ -851,7 +956,9 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
         position = position,
         heading = heading,
         pitch = pitch,
-        roll = roll
+        roll = roll,
+        placementMode = placementMode,
+        attach = attachData
     })
 end)
 
