@@ -401,6 +401,26 @@ local function no_hud_burst()
     ) then end
 end
 
+local function resetChaosState()
+    local playerId = PlayerId()
+    local playerPed = PlayerPedId()
+
+    SetGravityLevel(0)
+    StopGameplayCamShaking(true)
+    StopScreenEffect('DrugsDrivingOut')
+    ClearTimecycleModifier()
+    SetArtificialLightsState(false)
+    SetArtificialLightsStateAffectsVehicles(true)
+    SetPedInfiniteAmmoClip(playerPed, false)
+    SetRunSprintMultiplierForPlayer(playerId, 1.0)
+
+    lowGravityActive = false
+
+    for key in pairs(activeTimedEffects) do
+        activeTimedEffects[key] = false
+    end
+end
+
 local eventHandlers = {
     weather_shift = function(data) weatherShift(data.weather) end,
     hostile_npcs = function(data) spawnHostilePeds(data.hostileDuration) end,
@@ -436,4 +456,14 @@ RegisterNetEvent('chaos_mode:runEvent', function(eventName, data)
     else
         notify(('Unknown chaos event: %s'):format(eventName))
     end
+end)
+
+AddEventHandler('onClientResourceStart', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    resetChaosState()
+end)
+
+AddEventHandler('onClientResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    resetChaosState()
 end)
