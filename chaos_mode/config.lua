@@ -123,6 +123,73 @@ Config.TrollActionMeta = {
     sudden_brake = {
         label = 'Sudden Brake',
         description = 'Slams the current vehicle to a stop.'
+    },
+    banana_spin = {
+        label = 'Banana Spin',
+        description = 'Adds a goofy spin force like a cartoon banana peel.'
+    },
+    noodle_legs = {
+        label = 'Noodle Legs',
+        description = 'Applies wobbly movement controls for a short time.',
+        durationMs = 8000
+    },
+    sneeze_nudge = {
+        label = 'Sneeze Nudge',
+        description = 'A sudden sneeze-like shove launches the target forward.'
+    },
+    confetti_pop = {
+        label = 'Confetti Pop',
+        description = 'Creates harmless confetti-like mini blasts around the player.'
+    },
+    radio_scramble = {
+        label = 'Radio Scramble',
+        description = 'Rapidly cycles radio stations in the current vehicle.',
+        durationMs = 6000
+    },
+    map_shuffle = {
+        label = 'Map Shuffle',
+        description = 'Drops a random nearby waypoint to confuse navigation.'
+    },
+    brake_tap = {
+        label = 'Brake Tap',
+        description = 'Instantly bleeds off speed from the current vehicle.'
+    },
+    tiny_bounce = {
+        label = 'Tiny Bounce',
+        description = 'Pops the target into a quick mini hop.'
+    },
+    butterhands = {
+        label = 'Butterhands',
+        description = 'Forces the currently equipped weapon away.'
+    },
+    compass_flip = {
+        label = 'Compass Flip',
+        description = 'Snaps the camera heading to disorient direction.'
+    },
+    gravity_glitch = {
+        label = 'Gravity Glitch',
+        description = 'Temporarily disables gravity on the target.',
+        durationMs = 4000
+    },
+    dance_loop = {
+        label = 'Dance Loop',
+        description = 'Forces an awkward dance break.',
+        durationMs = 5000
+    },
+    shoe_glue = {
+        label = 'Shoe Glue',
+        description = 'Freezes the player in place very briefly.',
+        durationMs = 3000
+    },
+    hiccup_boost = {
+        label = 'Hiccup Boost',
+        description = 'Applies repeated little upward hiccup jolts.',
+        durationMs = 5000
+    },
+    phantom_honk = {
+        label = 'Phantom Honk',
+        description = 'Plays random honk bursts around the target.',
+        durationMs = 5000
     }
 }
 
