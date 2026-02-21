@@ -123,3 +123,43 @@ footer {
 #triggerBtn {
   font-weight: bold;
 }
+
+
+.hud-panel {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 260px;
+  background: rgba(18, 18, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  padding: 12px;
+  pointer-events: none;
+}
+
+.hud-timer {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.hud-section h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.hud-section p {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.hud-history {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.4;
+}

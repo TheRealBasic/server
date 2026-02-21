@@ -1,8 +1,8 @@
 Config = {}
 
 Config.Enabled = true
-Config.MinIntervalMs = 45000
-Config.MaxIntervalMs = 90000
+Config.MinIntervalMs = 30000
+Config.MaxIntervalMs = 30000
 Config.HostileNpcDurationMs = 30000
 Config.ObjectCleanupMs = 30000
 
