@@ -86,6 +86,43 @@ Config.TrollActionMeta = {
         label = 'Reverse Controls',
         description = 'Inverts movement controls for maximum confusion.',
         durationMs = 10000
+    },
+    moonwalk = {
+        label = 'Moonwalk Curse',
+        description = 'Forces a slick backwards movement style.',
+        durationMs = 9000
+    },
+    random_trip = {
+        label = 'Random Trip',
+        description = 'Makes the player unexpectedly faceplant.'
+    },
+    invisible_brief = {
+        label = 'Invisible Brief',
+        description = 'Turns the player invisible for a short prank.',
+        durationMs = 6000
+    },
+    camera_whiplash = {
+        label = 'Camera Whiplash',
+        description = 'Violent camera shake and blur combo.',
+        durationMs = 7000
+    },
+    weapon_jam = {
+        label = 'Weapon Jam',
+        description = 'Temporarily blocks firing controls.',
+        durationMs = 7000
+    },
+    yeet_sideways = {
+        label = 'Yeet Sideways',
+        description = 'Throws the player hard to one side.'
+    },
+    clown_horn = {
+        label = 'Clown Horn',
+        description = 'Honks repeatedly around the target for chaos.',
+        durationMs = 5000
+    },
+    sudden_brake = {
+        label = 'Sudden Brake',
+        description = 'Slams the current vehicle to a stop.'
     }
 }
 
@@ -176,7 +213,37 @@ Config.EventPool = {
     'sticky_bombs_party',
     'blimp_shadow',
     'rogue_wave',
-    'apocalypse_sky'
+    'apocalypse_sky',
+    'banana_peel_panic',
+    'disco_inferno',
+    'yoink_gun_lottery',
+    'quantum_seatbelt',
+    'gremlin_mechanics',
+    'bass_boosted_horns',
+    'confetti_overdrive',
+    'tiny_tornado',
+    'pogo_protocol',
+    'rubber_band_lag',
+    'cinema_quake',
+    'gravity_io',
+    'meteor_snack_attack',
+    'panic_pinata',
+    'fog_of_memes',
+    'nightclub_blackout',
+    'bouncy_bullets',
+    'blizzard_of_cones',
+    'npc_karaoke',
+    'car_sneeze',
+    'sandwich_timewarp',
+    'screaming_sky',
+    'reverse_moshpit',
+    'loot_pinata',
+    'cursed_zoomies',
+    'fishtank_mode',
+    'honkpocalypse',
+    'sticky_floor_lite',
+    'dancequake',
+    'brainlag_controls'
 }
 
 Config.EventCompatibility = {
@@ -266,7 +333,37 @@ Config.EventCompatibility = {
     sticky_bombs_party = {},
     blimp_shadow = {},
     rogue_wave = { effectKey = 'water_modifier', durationMs = 10000, blacklist = { tsunami_surge = true, flash_flood = true } },
-    apocalypse_sky = { effectKey = 'world_lighting', durationMs = 18000, blacklist = { weather_shift = true, random_time_shift = true } }
+    apocalypse_sky = { effectKey = 'world_lighting', durationMs = 18000, blacklist = { weather_shift = true, random_time_shift = true } },
+    banana_peel_panic = { effectKey = 'mobility_modifier', durationMs = 10000 },
+    disco_inferno = {},
+    yoink_gun_lottery = {},
+    quantum_seatbelt = {},
+    gremlin_mechanics = {},
+    bass_boosted_horns = {},
+    confetti_overdrive = {},
+    tiny_tornado = { effectKey = 'physics_modifier', durationMs = 10000 },
+    pogo_protocol = { effectKey = 'physics_modifier', durationMs = 9000 },
+    rubber_band_lag = {},
+    cinema_quake = { effectKey = 'camera_motion', durationMs = 12000 },
+    gravity_io = { effectKey = 'physics_modifier', durationMs = 6000 },
+    meteor_snack_attack = {},
+    panic_pinata = {},
+    fog_of_memes = { effectKey = 'world_lighting', durationMs = 20000 },
+    nightclub_blackout = { effectKey = 'world_lighting', durationMs = 10000 },
+    bouncy_bullets = { effectKey = 'ammo_modifier', durationMs = 12000 },
+    blizzard_of_cones = {},
+    npc_karaoke = {},
+    car_sneeze = {},
+    sandwich_timewarp = {},
+    screaming_sky = { effectKey = 'audio_modifier', durationMs = 9000 },
+    reverse_moshpit = {},
+    loot_pinata = {},
+    cursed_zoomies = {},
+    fishtank_mode = { effectKey = 'water_modifier', durationMs = 20000 },
+    honkpocalypse = {},
+    sticky_floor_lite = { effectKey = 'mobility_modifier', durationMs = 5000 },
+    dancequake = { effectKey = 'mobility_modifier', durationMs = 10000 },
+    brainlag_controls = { effectKey = 'ui_modifier', durationMs = 9000 }
 }
 
 Config.WeatherTypes = {

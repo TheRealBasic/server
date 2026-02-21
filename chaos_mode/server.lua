@@ -15,7 +15,15 @@ local trollActions = {
     'stall_engine',
     'burst_tires',
     'teleport_back',
-    'reverse_controls'
+    'reverse_controls',
+    'moonwalk',
+    'random_trip',
+    'invisible_brief',
+    'camera_whiplash',
+    'weapon_jam',
+    'yeet_sideways',
+    'clown_horn',
+    'sudden_brake'
 }
 
 local function validateConfig()
