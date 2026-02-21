@@ -12,6 +12,11 @@ local buildSurfaceAlignEnabled = true
 local buildPlacementMode = 'world'
 local selectedBuildPropId = nil
 local selectedBuildPropModel = nil
+local buildCatalog = {}
+local buildUiCategory = 'all'
+local buildUiQuery = ''
+local buildUiView = 'list'
+local sendBuildUiState
 local buildGhostEntity = 0
 local buildHeightOffset = 0.0
 local buildAttachTargetNetId = 0
@@ -255,10 +260,12 @@ local function toggleBuildModeType()
         buildPlacementMode = 'attach'
         clearAttachTarget()
         notify('Build mode: ATTACH')
+        sendBuildUiState()
     else
         buildPlacementMode = 'world'
         clearAttachTarget()
         notify('Build mode: WORLD SNAP')
+        sendBuildUiState()
     end
 end
 
@@ -362,6 +369,53 @@ local function setSelectedBuildProp(propId, modelHash)
     return true
 end
 
+
+sendBuildUiState = function()
+    SendNUIMessage({
+        action = 'setBuildState',
+        buildMode = {
+            category = buildUiCategory,
+            query = buildUiQuery,
+            view = buildUiView,
+            snap = buildGridSnapEnabled,
+            rotateStep = buildRotationStep,
+            attach = buildPlacementMode == 'attach',
+            enabled = buildModeActive
+        }
+    })
+end
+
+local function buildCatalogFromConfig()
+    local catalog = {}
+    local allowed = Config.BuildTool and Config.BuildTool.AllowedModels or {}
+    local modelCatalog = Config.BuildToolModelCatalog or {}
+
+    for categoryId, group in pairs(allowed) do
+        local entries = type(group) == 'table' and group.entries or nil
+        if type(entries) == 'table' then
+            for _, entry in ipairs(entries) do
+                local propId = type(entry) == 'table' and entry.id or nil
+                local item = propId and modelCatalog[propId] or nil
+                if type(item) == 'table' and type(item.model) == 'string' then
+                    table.insert(catalog, {
+                        id = propId,
+                        label = item.label or propId,
+                        description = item.description or '',
+                        categoryId = categoryId,
+                        categoryLabel = type(group.label) == 'string' and group.label or categoryId
+                    })
+                end
+            end
+        end
+    end
+
+    table.sort(catalog, function(a, b)
+        return tostring(a.label) < tostring(b.label)
+    end)
+
+    return catalog
+end
+
 local function isBuildAreaOverlapping(target, model)
     local minDim, maxDim = GetModelDimensions(model)
     local radius = math.max(1.0, math.max(maxDim.x - minDim.x, maxDim.y - minDim.y) * 0.6)
@@ -445,11 +499,13 @@ local function setBuildModeState(enabled)
         clearAttachTarget()
         buildPlacementValid = false
         notify(('Build mode enabled (%s) | M: mode, G: grid, H: align, [/]: snap step, E: place/select'):format(selectedBuildPropId))
+        sendBuildUiState()
     else
         deleteBuildGhostEntity()
         clearAttachTarget()
         buildPlacementValid = false
         notify('Build mode disabled')
+        sendBuildUiState()
     end
 end
 
@@ -2096,6 +2152,7 @@ end)
 RegisterNetEvent('chaos_mode:menuData', function(payload)
     payload = payload or {}
     eventToggleState = payload.eventToggles or {}
+    buildCatalog = type(payload.buildCatalog) == 'table' and payload.buildCatalog or buildCatalogFromConfig()
 
     if type(payload.buildProps) == 'table' then
         trackedBuildProps = {}
@@ -2112,7 +2169,18 @@ RegisterNetEvent('chaos_mode:menuData', function(payload)
         trollActions = payload.trollActions or {},
         trollActionMeta = payload.trollActionMeta or {},
         eventMeta = payload.eventMeta or {},
-        eventToggles = eventToggleState
+        eventToggles = eventToggleState,
+        buildCatalog = buildCatalog,
+        selectedProp = selectedBuildPropId,
+        buildMode = {
+            category = buildUiCategory,
+            query = buildUiQuery,
+            view = buildUiView,
+            snap = buildGridSnapEnabled,
+            rotateStep = buildRotationStep,
+            attach = buildPlacementMode == 'attach',
+            enabled = buildModeActive
+        }
     })
 end)
 
@@ -2562,11 +2630,95 @@ RegisterNUICallback('setBuildSelection', function(data, cb)
 
     if ok then
         notify(('Build prop selected: %s'):format(propId))
+        SendNUIMessage({ action = 'setBuildSelection', propId = propId })
     else
         notify('Build prop selection cleared')
     end
 
     cb({ ok = ok })
+end)
+
+RegisterNUICallback('setBuildCategory', function(data, cb)
+    buildUiCategory = type(data) == 'table' and tostring(data.category or 'all') or 'all'
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setBuildFilter', function(data, cb)
+    buildUiQuery = type(data) == 'table' and tostring(data.query or '') or ''
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setBuildView', function(data, cb)
+    local view = type(data) == 'table' and tostring(data.view or 'list') or 'list'
+    if view ~= 'grid' then
+        view = 'list'
+    end
+    buildUiView = view
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setBuildSnap', function(data, cb)
+    buildGridSnapEnabled = type(data) == 'table' and data.enabled == true
+    sendBuildUiState()
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setBuildRotateStep', function(data, cb)
+    local step = type(data) == 'table' and tonumber(data.step) or nil
+    if step then
+        buildRotationStep = math.min(90.0, math.max(1.0, step))
+        sendBuildUiState()
+    end
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('setBuildAttachMode', function(data, cb)
+    local enabled = type(data) == 'table' and data.enabled == true
+    local nextMode = enabled and 'attach' or 'world'
+
+    if buildPlacementMode ~= nextMode then
+        buildPlacementMode = nextMode
+        clearAttachTarget()
+    end
+
+    sendBuildUiState()
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('buildPlace', function(data, cb)
+    if type(data) == 'table' then
+        if type(data.propId) == 'string' then
+            local catalogEntry = Config.BuildToolModelCatalog and Config.BuildToolModelCatalog[data.propId] or nil
+            if catalogEntry and catalogEntry.model then
+                setSelectedBuildProp(data.propId, joaat(catalogEntry.model))
+            end
+        end
+
+        if type(data.snap) == 'boolean' then
+            buildGridSnapEnabled = data.snap
+        end
+
+        if tonumber(data.rotateStep) then
+            buildRotationStep = math.min(90.0, math.max(1.0, tonumber(data.rotateStep)))
+        end
+
+        if type(data.attach) == 'boolean' then
+            buildPlacementMode = data.attach and 'attach' or 'world'
+            clearAttachTarget()
+        end
+    end
+
+    if not buildModeActive then
+        setBuildModeState(true)
+    end
+
+    sendBuildUiState()
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('buildCancel', function(_, cb)
+    setBuildModeState(false)
+    cb({ ok = true })
 end)
 
 RegisterCommand('buildmode', function()
@@ -2647,6 +2799,7 @@ CreateThread(function()
             if IsControlJustPressed(0, 47) then
                 buildGridSnapEnabled = not buildGridSnapEnabled
                 notify(('Build grid snap: %s'):format(buildGridSnapEnabled and 'ON' or 'OFF'))
+                sendBuildUiState()
             end
 
             if IsControlJustPressed(0, 74) then
@@ -2661,11 +2814,13 @@ CreateThread(function()
             if IsControlJustPressed(0, 39) then
                 buildRotationStep = math.max(1.0, buildRotationStep - 1.0)
                 notify(('Build rotation snap: %.1f°'):format(buildRotationStep))
+                sendBuildUiState()
             end
 
             if IsControlJustPressed(0, 40) then
                 buildRotationStep = math.min(90.0, buildRotationStep + 1.0)
                 notify(('Build rotation snap: %.1f°'):format(buildRotationStep))
+                sendBuildUiState()
             end
 
             if IsControlJustPressed(0, 10) then

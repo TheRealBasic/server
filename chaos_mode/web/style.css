@@ -58,7 +58,8 @@ label {
 }
 
 select,
-button {
+button,
+input[type="text"] {
   width: 100%;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -78,7 +79,7 @@ button {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -181,4 +182,65 @@ footer {
   padding-left: 18px;
   font-size: 13px;
   line-height: 1.4;
+}
+
+
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.view-toggle-row {
+  margin-top: 8px;
+}
+
+.build-catalog {
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(10, 10, 12, 0.65);
+  display: grid;
+  gap: 8px;
+}
+
+.build-catalog.list {
+  grid-template-columns: 1fr;
+}
+
+.build-catalog.grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.build-item {
+  text-align: left;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.build-item.active {
+  border-color: #8f7dff;
+  box-shadow: 0 0 0 1px rgba(143, 125, 255, 0.45);
+}
+
+.build-item-category {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.build-item-description {
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.25;
+}
+
+.build-empty {
+  font-size: 12px;
+  opacity: 0.8;
 }

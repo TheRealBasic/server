@@ -8,8 +8,10 @@ const playerList = document.getElementById('playerList');
 const triggerBtn = document.getElementById('triggerBtn');
 const closeBtn = document.getElementById('closeBtn');
 const chaosTab = document.getElementById('chaosTab');
+const buildTab = document.getElementById('buildTab');
 const trollTab = document.getElementById('trollTab');
 const chaosPanel = document.getElementById('chaosPanel');
+const buildPanel = document.getElementById('buildPanel');
 const trollPanel = document.getElementById('trollPanel');
 const trollActionSelect = document.getElementById('trollActionSelect');
 const trollActionInfo = document.getElementById('trollActionInfo');
@@ -17,6 +19,16 @@ const triggerTrollBtn = document.getElementById('triggerTrollBtn');
 const hudTimer = document.getElementById('hudTimer');
 const hudCurrentEvent = document.getElementById('hudCurrentEvent');
 const hudHistory = document.getElementById('hudHistory');
+const buildCategorySelect = document.getElementById('buildCategorySelect');
+const buildSearchInput = document.getElementById('buildSearchInput');
+const buildCatalogList = document.getElementById('buildCatalogList');
+const catalogGridBtn = document.getElementById('catalogGridBtn');
+const catalogListBtn = document.getElementById('catalogListBtn');
+const buildPlaceBtn = document.getElementById('buildPlaceBtn');
+const buildCancelBtn = document.getElementById('buildCancelBtn');
+const buildSnapToggle = document.getElementById('buildSnapToggle');
+const buildRotateStep = document.getElementById('buildRotateStep');
+const buildAttachToggle = document.getElementById('buildAttachToggle');
 
 const resourceName = typeof GetParentResourceName === 'function'
   ? GetParentResourceName()
@@ -30,6 +42,17 @@ const state = {
   eventMeta: {},
   eventToggles: {},
   mode: 'chaos',
+  buildCatalog: [],
+  selectedProp: null,
+  buildMode: {
+    category: 'all',
+    query: '',
+    view: 'list',
+    snap: true,
+    rotateStep: 15,
+    attach: false,
+    enabled: false
+  },
   hud: {
     secondsRemaining: 30,
     currentEvent: 'Waiting for next event',
@@ -121,6 +144,88 @@ function renderTrollActions() {
   updateTrollActionInfo();
 }
 
+function getFilteredBuildCatalog() {
+  const selectedCategory = state.buildMode.category;
+  const query = state.buildMode.query.trim().toLowerCase();
+
+  return state.buildCatalog.filter((entry) => {
+    const categoryMatches = selectedCategory === 'all' || entry.categoryId === selectedCategory;
+    if (!categoryMatches) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    const haystack = `${entry.label || ''} ${entry.description || ''} ${entry.id || ''}`.toLowerCase();
+    return haystack.includes(query);
+  });
+}
+
+function renderBuildCatalog() {
+  if (!buildCatalogList) {
+    return;
+  }
+
+  buildCatalogList.innerHTML = '';
+  const filtered = getFilteredBuildCatalog();
+
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'build-empty';
+    empty.textContent = 'No build props found.';
+    buildCatalogList.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach((entry) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'build-item';
+    if (state.selectedProp === entry.id) {
+      item.classList.add('active');
+    }
+
+    const title = document.createElement('strong');
+    title.textContent = entry.label || entry.id;
+    item.appendChild(title);
+
+    const category = document.createElement('span');
+    category.className = 'build-item-category';
+    category.textContent = entry.categoryLabel || entry.categoryId || 'Misc';
+    item.appendChild(category);
+
+    if (entry.description) {
+      const description = document.createElement('span');
+      description.className = 'build-item-description';
+      description.textContent = entry.description;
+      item.appendChild(description);
+    }
+
+    item.addEventListener('click', () => {
+      state.selectedProp = entry.id;
+      renderBuildCatalog();
+      postNui('setBuildSelection', { propId: entry.id });
+    });
+
+    buildCatalogList.appendChild(item);
+  });
+}
+
+function syncBuildControls() {
+  buildCategorySelect.value = state.buildMode.category || 'all';
+  buildSearchInput.value = state.buildMode.query || '';
+  buildSnapToggle.checked = state.buildMode.snap === true;
+  buildAttachToggle.checked = state.buildMode.attach === true;
+  buildRotateStep.value = String(state.buildMode.rotateStep || 15);
+
+  buildCatalogList.classList.toggle('grid', state.buildMode.view === 'grid');
+  buildCatalogList.classList.toggle('list', state.buildMode.view !== 'grid');
+  catalogGridBtn.classList.toggle('active', state.buildMode.view === 'grid');
+  catalogListBtn.classList.toggle('active', state.buildMode.view !== 'grid');
+}
+
 function updateEventInfo() {
   if (!eventInfo) {
     return;
@@ -151,7 +256,6 @@ function updateTrollActionInfo() {
   const meta = state.trollActionMeta[selectedId] || {};
   trollActionInfo.textContent = describeMeta(selectedId, meta);
 }
-
 
 function renderHud() {
   if (hudTimer) {
@@ -184,12 +288,15 @@ function renderHud() {
 function setMode(mode) {
   state.mode = mode;
   const trollMode = mode === 'troll';
-  chaosTab.classList.toggle('active', !trollMode);
+  const buildMode = mode === 'build';
+  chaosTab.classList.toggle('active', mode === 'chaos');
+  buildTab.classList.toggle('active', buildMode);
   trollTab.classList.toggle('active', trollMode);
-  chaosPanel.classList.toggle('hidden', trollMode);
+  chaosPanel.classList.toggle('hidden', mode !== 'chaos');
+  buildPanel.classList.toggle('hidden', !buildMode);
   trollPanel.classList.toggle('hidden', !trollMode);
-  allPlayersRadio.disabled = trollMode;
-  if (trollMode) {
+  allPlayersRadio.disabled = trollMode || buildMode;
+  if (trollMode || buildMode) {
     specificPlayersRadio.checked = true;
   }
   updatePlayerListState();
@@ -216,7 +323,13 @@ window.addEventListener('message', (event) => {
   }
 
   if (data.action === 'setMode') {
-    setMode(data.mode === 'troll' ? 'troll' : 'chaos');
+    if (data.mode === 'troll') {
+      setMode('troll');
+    } else if (data.mode === 'build') {
+      setMode('build');
+    } else {
+      setMode('chaos');
+    }
   }
 
   if (data.action === 'setHudData') {
@@ -233,15 +346,43 @@ window.addEventListener('message', (event) => {
     state.trollActionMeta = data.trollActionMeta && typeof data.trollActionMeta === 'object' ? data.trollActionMeta : {};
     state.eventMeta = data.eventMeta && typeof data.eventMeta === 'object' ? data.eventMeta : {};
     state.eventToggles = data.eventToggles && typeof data.eventToggles === 'object' ? data.eventToggles : {};
+    state.buildCatalog = Array.isArray(data.buildCatalog) ? data.buildCatalog : [];
+    if (typeof data.selectedProp === 'string') {
+      state.selectedProp = data.selectedProp;
+    }
+    if (data.buildMode && typeof data.buildMode === 'object') {
+      state.buildMode = {
+        ...state.buildMode,
+        ...data.buildMode
+      };
+    }
     renderEvents();
     renderPlayers();
     renderTrollActions();
+    syncBuildControls();
+    renderBuildCatalog();
     updatePlayerListState();
   }
 
   if (data.action === 'setEventToggles') {
     state.eventToggles = data.eventToggles && typeof data.eventToggles === 'object' ? data.eventToggles : {};
     updateEventToggle();
+  }
+
+  if (data.action === 'setBuildSelection') {
+    state.selectedProp = typeof data.propId === 'string' ? data.propId : null;
+    renderBuildCatalog();
+  }
+
+  if (data.action === 'setBuildState') {
+    if (data.buildMode && typeof data.buildMode === 'object') {
+      state.buildMode = {
+        ...state.buildMode,
+        ...data.buildMode
+      };
+      syncBuildControls();
+      renderBuildCatalog();
+    }
   }
 });
 
@@ -282,7 +423,60 @@ triggerTrollBtn.addEventListener('click', async () => {
   await postNui('triggerTrollAction', { actionName, players });
 });
 
+buildCategorySelect.addEventListener('change', async () => {
+  state.buildMode.category = buildCategorySelect.value;
+  renderBuildCatalog();
+  await postNui('setBuildCategory', { category: state.buildMode.category });
+});
+
+buildSearchInput.addEventListener('input', async () => {
+  state.buildMode.query = buildSearchInput.value || '';
+  renderBuildCatalog();
+  await postNui('setBuildFilter', { query: state.buildMode.query });
+});
+
+catalogGridBtn.addEventListener('click', async () => {
+  state.buildMode.view = 'grid';
+  syncBuildControls();
+  await postNui('setBuildView', { view: 'grid' });
+});
+
+catalogListBtn.addEventListener('click', async () => {
+  state.buildMode.view = 'list';
+  syncBuildControls();
+  await postNui('setBuildView', { view: 'list' });
+});
+
+buildPlaceBtn.addEventListener('click', async () => {
+  await postNui('buildPlace', {
+    propId: state.selectedProp,
+    snap: buildSnapToggle.checked,
+    rotateStep: Number(buildRotateStep.value),
+    attach: buildAttachToggle.checked
+  });
+});
+
+buildCancelBtn.addEventListener('click', async () => {
+  await postNui('buildCancel');
+});
+
+buildSnapToggle.addEventListener('change', async () => {
+  state.buildMode.snap = buildSnapToggle.checked;
+  await postNui('setBuildSnap', { enabled: state.buildMode.snap });
+});
+
+buildRotateStep.addEventListener('change', async () => {
+  state.buildMode.rotateStep = Number(buildRotateStep.value);
+  await postNui('setBuildRotateStep', { step: state.buildMode.rotateStep });
+});
+
+buildAttachToggle.addEventListener('change', async () => {
+  state.buildMode.attach = buildAttachToggle.checked;
+  await postNui('setBuildAttachMode', { enabled: state.buildMode.attach });
+});
+
 chaosTab.addEventListener('click', () => setMode('chaos'));
+buildTab.addEventListener('click', () => setMode('build'));
 trollTab.addEventListener('click', () => setMode('troll'));
 
 closeBtn.addEventListener('click', async () => {
@@ -296,3 +490,5 @@ document.addEventListener('keydown', async (event) => {
 });
 
 renderHud();
+syncBuildControls();
+renderBuildCatalog();

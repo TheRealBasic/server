@@ -15,6 +15,7 @@
 
     <section class="mode-tabs">
       <button id="chaosTab" class="tab-btn active" type="button">Chaos</button>
+      <button id="buildTab" class="tab-btn" type="button">Build</button>
       <button id="trollTab" class="tab-btn" type="button">Secret Troll</button>
     </section>
 
@@ -38,6 +39,51 @@
       <footer>
         <button id="triggerTrollBtn" type="button">Do Troll Action</button>
       </footer>
+    </section>
+
+    <section id="buildPanel" class="panel hidden">
+      <label for="buildCategorySelect">Category</label>
+      <select id="buildCategorySelect">
+        <option value="all">All</option>
+        <option value="ramps">Ramps</option>
+        <option value="trampolines">Trampolines</option>
+        <option value="springs">Springs</option>
+        <option value="obstacles">Obstacles</option>
+      </select>
+
+      <label for="buildSearchInput">Search</label>
+      <input id="buildSearchInput" type="text" placeholder="Filter props...">
+
+      <div class="control-row view-toggle-row">
+        <button id="catalogGridBtn" type="button">Grid</button>
+        <button id="catalogListBtn" class="active" type="button">List</button>
+      </div>
+
+      <div id="buildCatalogList" class="build-catalog list"></div>
+
+      <div class="control-row">
+        <button id="buildPlaceBtn" type="button">Place</button>
+        <button id="buildCancelBtn" type="button">Cancel</button>
+      </div>
+
+      <label class="toggle-row" for="buildSnapToggle">
+        <input id="buildSnapToggle" type="checkbox" checked>
+        Snap to grid
+      </label>
+
+      <label for="buildRotateStep">Rotate step</label>
+      <select id="buildRotateStep">
+        <option value="5">5°</option>
+        <option value="10">10°</option>
+        <option value="15" selected>15°</option>
+        <option value="30">30°</option>
+        <option value="45">45°</option>
+      </select>
+
+      <label class="toggle-row" for="buildAttachToggle">
+        <input id="buildAttachToggle" type="checkbox">
+        Attach mode
+      </label>
     </section>
 
     <section class="targets">

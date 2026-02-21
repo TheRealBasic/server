@@ -87,6 +87,42 @@ local function getBuildAllowedEntries()
     return entriesById, entriesByModel
 end
 
+
+local function getBuildCatalogPayload()
+    local payload = {}
+    local catalog = type(Config.BuildToolModelCatalog) == 'table' and Config.BuildToolModelCatalog or {}
+    local groups = getBuildToolConfig().AllowedModels
+
+    if type(groups) ~= 'table' then
+        return payload
+    end
+
+    for categoryId, group in pairs(groups) do
+        local entries = type(group) == 'table' and group.entries or nil
+        if type(entries) == 'table' then
+            for _, entry in ipairs(entries) do
+                local propId = type(entry) == 'table' and entry.id or nil
+                local item = propId and catalog[propId] or nil
+                if type(item) == 'table' and type(item.model) == 'string' then
+                    table.insert(payload, {
+                        id = propId,
+                        label = item.label or propId,
+                        description = item.description or '',
+                        categoryId = categoryId,
+                        categoryLabel = type(group.label) == 'string' and group.label or tostring(categoryId)
+                    })
+                end
+            end
+        end
+    end
+
+    table.sort(payload, function(a, b)
+        return tostring(a.label) < tostring(b.label)
+    end)
+
+    return payload
+end
+
 local function isBuildAdmin(src)
     local buildConfig = getBuildToolConfig()
     local ace = tostring(buildConfig.AdminAce or 'chaos_mode.build_admin')
@@ -845,6 +881,7 @@ RegisterNetEvent('chaos_mode:requestMenuData', function()
         trollActionMeta = Config.TrollActionMeta or {},
         eventMeta = Config.EventMeta or {},
         eventToggles = getEventToggleMap(),
+        buildCatalog = getBuildCatalogPayload(),
         buildProps = getPlacedPropSnapshot()
     })
 end)
