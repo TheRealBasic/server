@@ -8,6 +8,128 @@ Config.ObjectCleanupMs = 30000
 Config.VehicleRadioSyncEnabled = true
 Config.VehicleRadioSyncIntervalMs = 1200
 
+Config.BuildTool = {
+    Enabled = true,
+    OpenKey = 'F6',
+    MaxPropsPerPlayer = 30,
+    MaxPropsGlobal = 300,
+    Snap = {
+        GridStep = 0.25,
+        RotationStep = 15.0,
+        MaxPlaceDistance = 25.0
+    },
+    BehaviorFlags = {
+        isTrampoline = false,
+        isSpringPlatform = false,
+        allowAttachToVehicle = false
+    }
+}
+
+Config.BuildToolModelCatalog = {
+    ramp_01 = {
+        model = 'prop_mp_ramp_01',
+        label = 'Compact Ramp',
+        description = 'Small launch ramp for quick stunt lines.'
+    },
+    ramp_02 = {
+        model = 'prop_skate_halfpipe_cr',
+        label = 'Halfpipe Ramp',
+        description = 'Curved halfpipe section for transitions.'
+    },
+    ramp_03 = {
+        model = 'stt_prop_ramp_adj_flip_m',
+        label = 'Adjustable Flip Ramp',
+        description = 'Medium ramp with a steep angle for flips.'
+    },
+    trampoline_01 = {
+        model = 'stt_prop_stunt_tube_l',
+        label = 'Tube Trampoline',
+        description = 'Large stunt tube that launches players upward.',
+        flags = {
+            isTrampoline = true
+        }
+    },
+    trampoline_02 = {
+        model = 'stt_prop_stunt_tube_s',
+        label = 'Compact Tube Trampoline',
+        description = 'Short stunt tube for tighter spaces.',
+        flags = {
+            isTrampoline = true
+        }
+    },
+    spring_01 = {
+        model = 'stt_prop_stunt_jump15',
+        label = 'Springboard XL',
+        description = 'Aggressive spring jump platform.',
+        flags = {
+            isSpringPlatform = true
+        }
+    },
+    spring_02 = {
+        model = 'stt_prop_stunt_jump30',
+        label = 'Springboard Long',
+        description = 'Extended spring platform for vehicle launches.',
+        flags = {
+            isSpringPlatform = true
+        }
+    },
+    obstacle_01 = {
+        model = 'prop_mp_barrier_01',
+        label = 'Safety Barrier',
+        description = 'Basic barricade for lane control.'
+    },
+    obstacle_02 = {
+        model = 'prop_mp_cone_04',
+        label = 'Traffic Cone',
+        description = 'Small obstacle useful for slalom patterns.'
+    },
+    obstacle_03 = {
+        model = 'prop_rub_tyre_01',
+        label = 'Tyre Stack',
+        description = 'Soft obstacle that can be clipped by vehicles.',
+        flags = {
+            allowAttachToVehicle = true
+        }
+    }
+}
+
+Config.BuildTool.AllowedModels = {
+    ramps = {
+        label = 'Ramps',
+        description = 'Launch and transition ramps for stunt builds.',
+        entries = {
+            { id = 'ramp_01' },
+            { id = 'ramp_02' },
+            { id = 'ramp_03' }
+        }
+    },
+    trampolines = {
+        label = 'Trampolines',
+        description = 'Bounce surfaces tuned for high vertical launches.',
+        entries = {
+            { id = 'trampoline_01' },
+            { id = 'trampoline_02' }
+        }
+    },
+    springs = {
+        label = 'Springs',
+        description = 'Directional spring platforms for speed boosts.',
+        entries = {
+            { id = 'spring_01' },
+            { id = 'spring_02' }
+        }
+    },
+    obstacles = {
+        label = 'Obstacles',
+        description = 'General-purpose blockers and challenge props.',
+        entries = {
+            { id = 'obstacle_01' },
+            { id = 'obstacle_02' },
+            { id = 'obstacle_03' }
+        }
+    }
+}
+
 Config.ComboEnabled = true
 Config.ComboChance = 30 -- percent chance to trigger two events at once
 Config.EventRecentHistoryWindow = 6 -- number of recently triggered events used to lower repeat odds
