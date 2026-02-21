@@ -4,11 +4,11 @@ A lightweight FiveM chaos addon for sandbox servers.
 
 ## Features
 - Random timed chaos events
+- 25 total effects (5 original + 20 additional chaos effects)
 - Weather shifts
 - Hostile NPC rebellion waves
 - Random prop storms around players
-- Short low-gravity bursts
-- Instant ragdoll waves
+- Movement, combat, camera, HUD, and vehicle disruption effects
 
 ## Install
 1. Drop the `chaos_mode` folder into your server `resources/` directory.
