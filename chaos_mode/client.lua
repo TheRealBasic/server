@@ -27,6 +27,8 @@ local buildPlacementTransform = {
     roll = 0.0
 }
 local buildPlacementValid = false
+local trackedBuildProps = {}
+local localPropBehaviorCooldowns = {}
 
 local function notify(message)
     BeginTextCommandThefeedPost('STRING')
@@ -113,6 +115,83 @@ local function getBuildMaxPlaceDistance()
     end
 
     return maxDistance
+end
+
+local function getBuildPropBehaviorConfig()
+    local buildConfig = Config.BuildTool or {}
+    local behavior = type(buildConfig.PropBehavior) == 'table' and buildConfig.PropBehavior or {}
+
+    return {
+        detectionRadius = math.max(0.75, tonumber(behavior.DetectionRadius) or 2.2),
+        touchPollMs = math.max(40, math.floor(tonumber(behavior.TouchPollMs) or 120))
+    }
+end
+
+local function setTrackedBuildProp(payload)
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local netId = tonumber(payload.netId)
+    if not netId or netId <= 0 then
+        return
+    end
+
+    trackedBuildProps[netId] = {
+        netId = netId,
+        behavior = type(payload.behavior) == 'table' and payload.behavior or nil,
+        propId = payload.propId
+    }
+end
+
+local function removeTrackedBuildProp(netId)
+    netId = tonumber(netId)
+    if not netId then
+        return
+    end
+
+    trackedBuildProps[netId] = nil
+    localPropBehaviorCooldowns[netId] = nil
+end
+
+local function applyBuildPropBoost(boostPayload)
+    if type(boostPayload) ~= 'table' then
+        return
+    end
+
+    local bounceForce = tonumber(boostPayload.bounceForce) or 0.0
+    local forwardBoost = tonumber(boostPayload.forwardBoost) or 0.0
+
+    if bounceForce <= 0.0 and forwardBoost <= 0.0 then
+        return
+    end
+
+    local ped = PlayerPedId()
+    local targetEntity = ped
+    if IsPedInAnyVehicle(ped, false) then
+        targetEntity = GetVehiclePedIsIn(ped, false)
+    end
+
+    if not targetEntity or targetEntity == 0 or not DoesEntityExist(targetEntity) then
+        return
+    end
+
+    local propEntity = 0
+    local netId = tonumber(boostPayload.netId)
+    if netId and netId > 0 and NetworkDoesNetworkIdExist(netId) then
+        propEntity = NetworkGetEntityFromNetworkId(netId)
+    end
+
+    local forward = propEntity ~= 0 and DoesEntityExist(propEntity) and GetEntityForwardVector(propEntity) or GetEntityForwardVector(targetEntity)
+
+    local vx = forward.x * forwardBoost
+    local vy = forward.y * forwardBoost
+
+    if targetEntity == ped then
+        ApplyForceToEntity(ped, 1, vx, vy, bounceForce, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    else
+        ApplyForceToEntity(targetEntity, 1, vx, vy, bounceForce, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    end
 end
 
 local function getGameplayCameraDirection()
@@ -2015,7 +2094,17 @@ RegisterNetEvent('chaos_mode:updateHud', function(payload)
 end)
 
 RegisterNetEvent('chaos_mode:menuData', function(payload)
+    payload = payload or {}
     eventToggleState = payload.eventToggles or {}
+
+    if type(payload.buildProps) == 'table' then
+        trackedBuildProps = {}
+        localPropBehaviorCooldowns = {}
+        for _, propData in ipairs(payload.buildProps) do
+            setTrackedBuildProp(propData)
+        end
+    end
+
     SendNUIMessage({
         action = 'setData',
         events = payload.events or {},
@@ -2025,6 +2114,34 @@ RegisterNetEvent('chaos_mode:menuData', function(payload)
         eventMeta = payload.eventMeta or {},
         eventToggles = eventToggleState
     })
+end)
+
+RegisterNetEvent('chaos_mode:propSpawned', function(payload)
+    setTrackedBuildProp(payload)
+end)
+
+RegisterNetEvent('chaos_mode:propRemoved', function(payload)
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    removeTrackedBuildProp(payload.netId)
+end)
+
+RegisterNetEvent('chaos_mode:applyPropBehaviorBoost', function(payload)
+    applyBuildPropBoost(payload)
+end)
+
+RegisterNetEvent('chaos_mode:syncPropBehaviorBoost', function(payload)
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    if tonumber(payload.playerSrc) ~= GetPlayerServerId(PlayerId()) then
+        return
+    end
+
+    applyBuildPropBoost(payload)
 end)
 
 RegisterNetEvent('chaos_mode:eventTogglesUpdated', function(toggleMap)
@@ -2668,6 +2785,47 @@ CreateThread(function()
 
             Wait(0)
         end
+    end
+end)
+
+CreateThread(function()
+    Wait(2000)
+    TriggerServerEvent('chaos_mode:requestMenuData')
+
+    while true do
+        local behaviorConfig = getBuildPropBehaviorConfig()
+        local sleepMs = behaviorConfig.touchPollMs
+        local ped = PlayerPedId()
+
+        if ped ~= 0 and DoesEntityExist(ped) then
+            local playerCoords = GetEntityCoords(ped)
+            for netId, propData in pairs(trackedBuildProps) do
+                if type(propData.behavior) == 'table' and (tonumber(propData.behavior.bounceForce) or 0) + (tonumber(propData.behavior.forwardBoost) or 0) > 0 then
+                    local entity = 0
+                    if NetworkDoesNetworkIdExist(netId) then
+                        entity = NetworkGetEntityFromNetworkId(netId)
+                    end
+
+                    if entity and entity ~= 0 and DoesEntityExist(entity) then
+                        local propCoords = GetEntityCoords(entity)
+                        local isNear = #(playerCoords - propCoords) <= behaviorConfig.detectionRadius
+                        local isTouching = IsEntityTouchingEntity(ped, entity)
+
+                        if isNear or isTouching then
+                            local now = GetGameTimer()
+                            local cooldownUntil = localPropBehaviorCooldowns[netId] or 0
+                            if now >= cooldownUntil then
+                                local cooldownMs = math.max(300, math.floor(tonumber(propData.behavior.cooldownMs) or 1500))
+                                localPropBehaviorCooldowns[netId] = now + cooldownMs
+                                TriggerServerEvent('chaos_mode:requestPropBehaviorBoost', { netId = netId })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        Wait(sleepMs)
     end
 end)
 

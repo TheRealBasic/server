@@ -45,36 +45,46 @@ local trollActions = {
 local funCommandUsage = {}
 local placedProps = {}
 local playerPropCounts = {}
+local propBehaviorCooldowns = {}
 
 local function getBuildToolConfig()
     return type(Config.BuildTool) == 'table' and Config.BuildTool or {}
 end
 
-local function getBuildAllowedModelSet()
-    local modelSet = {}
+local function getBuildAllowedEntries()
+    local entriesById = {}
+    local entriesByModel = {}
     local catalog = type(Config.BuildToolModelCatalog) == 'table' and Config.BuildToolModelCatalog or {}
     local buildConfig = getBuildToolConfig()
     local groups = buildConfig.AllowedModels
 
     if type(groups) ~= 'table' then
-        return modelSet
+        return entriesById, entriesByModel
     end
 
     for _, group in pairs(groups) do
-        local entries = type(group) == 'table' and group.entries or nil
-        if type(entries) == 'table' then
-            for _, entry in ipairs(entries) do
+        local groupEntries = type(group) == 'table' and group.entries or nil
+        if type(groupEntries) == 'table' then
+            for _, entry in ipairs(groupEntries) do
                 if type(entry) == 'table' and type(entry.id) == 'string' then
                     local catalogEntry = catalog[entry.id]
                     if type(catalogEntry) == 'table' and type(catalogEntry.model) == 'string' then
-                        modelSet[joaat(catalogEntry.model)] = true
+                        local modelHash = joaat(catalogEntry.model)
+                        local behavior = type(entry.behavior) == 'table' and entry.behavior or nil
+                        local payload = {
+                            id = entry.id,
+                            model = modelHash,
+                            behavior = behavior
+                        }
+                        entriesById[entry.id] = payload
+                        entriesByModel[modelHash] = payload
                     end
                 end
             end
         end
     end
 
-    return modelSet
+    return entriesById, entriesByModel
 end
 
 local function isBuildAdmin(src)
@@ -146,6 +156,36 @@ local function getNumericVector3(input)
     end
 
     return { x = x, y = y, z = z }
+end
+
+local function getBuildBehaviorConfig()
+    local buildConfig = getBuildToolConfig()
+    local behavior = type(buildConfig.PropBehavior) == 'table' and buildConfig.PropBehavior or {}
+
+    return {
+        serverValidationRange = math.max(1.0, tonumber(behavior.ServerValidationRange) or 5.0),
+        majorBoostForwardThreshold = math.max(0.0, tonumber(behavior.MajorBoostForwardThreshold) or 8.5)
+    }
+end
+
+local function getSanitizedBehavior(entryBehavior)
+    if type(entryBehavior) ~= 'table' then
+        return nil
+    end
+
+    local bounceForce = tonumber(entryBehavior.bounceForce)
+    local forwardBoost = tonumber(entryBehavior.forwardBoost)
+    local cooldownMs = tonumber(entryBehavior.cooldownMs)
+
+    if not bounceForce and not forwardBoost then
+        return nil
+    end
+
+    return {
+        bounceForce = math.max(0.0, math.min(20.0, bounceForce or 0.0)),
+        forwardBoost = math.max(0.0, math.min(25.0, forwardBoost or 0.0)),
+        cooldownMs = math.max(0, math.floor(cooldownMs or 1500))
+    }
 end
 
 local function isPositionInBounds(position)
@@ -288,7 +328,8 @@ local function getPlacedPropSnapshot()
             pitch = propData.pitch,
             roll = propData.roll,
             placementMode = propData.placementMode,
-            attach = propData.attach
+            attach = propData.attach,
+            behavior = propData.behavior
         }
     end
     return snapshot
@@ -296,6 +337,7 @@ end
 
 AddEventHandler('playerDropped', function()
     cleanupPlayerProps(source, 'owner_disconnected')
+    propBehaviorCooldowns[source] = nil
 end)
 
 local function trimWhitespace(value)
@@ -824,6 +866,7 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
         return
     end
 
+    local propId = tostring(payload.propId or '')
     local model = tonumber(payload.model)
     local position = getNumericVector3(payload.position)
     local heading = sanitizeRotation(payload.heading)
@@ -847,11 +890,24 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
         return
     end
 
-    local allowedModels = getBuildAllowedModelSet()
-    if not allowedModels[model] then
+    local allowedById, allowedByModel = getBuildAllowedEntries()
+    local allowedEntryById = allowedById[propId]
+    if not allowedEntryById then
+        sendBuildMessage(src, 'Unknown or disallowed prop id.')
+        return
+    end
+
+    if allowedEntryById.model ~= model then
+        sendBuildMessage(src, 'Prop model mismatch for the selected prop id.')
+        return
+    end
+
+    if not allowedByModel[model] then
         sendBuildMessage(src, 'That prop model is not allowed.')
         return
     end
+
+    local behavior = getSanitizedBehavior(allowedEntryById.behavior)
 
     local maxPerPlayer = math.max(1, math.floor(tonumber(buildConfig.MaxPropsPerPlayer) or 30))
     local maxGlobal = math.max(1, math.floor(tonumber(buildConfig.MaxPropsGlobal) or 300))
@@ -937,28 +993,30 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
         entity = object,
         owner = src,
         model = model,
-        propId = tostring(payload.propId or ''),
+        propId = propId,
         position = position,
         heading = heading,
         pitch = pitch,
         roll = roll,
         createdAt = os.time(),
         placementMode = placementMode,
-        attach = attachData
+        attach = attachData,
+        behavior = behavior
     }
     adjustPlayerPropCount(src, 1)
 
     TriggerClientEvent('chaos_mode:propSpawned', -1, {
         netId = netId,
         owner = src,
-        propId = tostring(payload.propId or ''),
+        propId = propId,
         model = model,
         position = position,
         heading = heading,
         pitch = pitch,
         roll = roll,
         placementMode = placementMode,
-        attach = attachData
+        attach = attachData,
+        behavior = behavior
     })
 end)
 
@@ -1062,8 +1120,72 @@ RegisterNetEvent('chaos_mode:editPropRequest', function(payload)
         heading = newHeading,
         pitch = newPitch,
         roll = newRoll,
+        behavior = propData.behavior,
         edited = true
     })
+end)
+
+
+RegisterNetEvent('chaos_mode:requestPropBehaviorBoost', function(payload)
+    local src = source
+    if type(payload) ~= 'table' then
+        return
+    end
+
+    local netId = tonumber(payload.netId)
+    if not netId then
+        return
+    end
+
+    local propData = placedProps[netId]
+    if not propData or type(propData.behavior) ~= 'table' then
+        return
+    end
+
+    local playerPed = GetPlayerPed(src)
+    if not playerPed or playerPed == 0 or not DoesEntityExist(playerPed) then
+        return
+    end
+
+    local propEntity = propData.entity
+    if (not propEntity or not DoesEntityExist(propEntity)) and NetworkDoesNetworkIdExist(netId) then
+        propEntity = NetworkGetEntityFromNetworkId(netId)
+    end
+
+    if not propEntity or propEntity == 0 or not DoesEntityExist(propEntity) then
+        return
+    end
+
+    local behaviorConfig = getBuildBehaviorConfig()
+    local playerCoords = GetEntityCoords(playerPed)
+    local propCoords = GetEntityCoords(propEntity)
+    if #(playerCoords - propCoords) > behaviorConfig.serverValidationRange then
+        return
+    end
+
+    local now = GetGameTimer()
+    local playerCooldowns = propBehaviorCooldowns[src] or {}
+    local nextAllowedAt = playerCooldowns[netId] or 0
+    if now < nextAllowedAt then
+        return
+    end
+
+    playerCooldowns[netId] = now + (propData.behavior.cooldownMs or 0)
+    propBehaviorCooldowns[src] = playerCooldowns
+
+    local approvedPayload = {
+        netId = netId,
+        bounceForce = propData.behavior.bounceForce,
+        forwardBoost = propData.behavior.forwardBoost,
+        cooldownMs = propData.behavior.cooldownMs,
+        playerSrc = src
+    }
+
+    if (propData.behavior.forwardBoost or 0.0) >= behaviorConfig.majorBoostForwardThreshold then
+        TriggerClientEvent('chaos_mode:syncPropBehaviorBoost', -1, approvedPayload)
+    else
+        TriggerClientEvent('chaos_mode:applyPropBehaviorBoost', src, approvedPayload)
+    end
 end)
 
 

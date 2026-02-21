@@ -22,6 +22,12 @@ Config.BuildTool = {
         isTrampoline = false,
         isSpringPlatform = false,
         allowAttachToVehicle = false
+    },
+    PropBehavior = {
+        DetectionRadius = 2.2,
+        TouchPollMs = 120,
+        ServerValidationRange = 5.0,
+        MajorBoostForwardThreshold = 8.5
     }
 }
 
@@ -107,16 +113,44 @@ Config.BuildTool.AllowedModels = {
         label = 'Trampolines',
         description = 'Bounce surfaces tuned for high vertical launches.',
         entries = {
-            { id = 'trampoline_01' },
-            { id = 'trampoline_02' }
+            {
+                id = 'trampoline_01',
+                behavior = {
+                    bounceForce = 11.0,
+                    forwardBoost = 2.5,
+                    cooldownMs = 1500
+                }
+            },
+            {
+                id = 'trampoline_02',
+                behavior = {
+                    bounceForce = 8.5,
+                    forwardBoost = 1.8,
+                    cooldownMs = 1200
+                }
+            }
         }
     },
     springs = {
         label = 'Springs',
         description = 'Directional spring platforms for speed boosts.',
         entries = {
-            { id = 'spring_01' },
-            { id = 'spring_02' }
+            {
+                id = 'spring_01',
+                behavior = {
+                    bounceForce = 6.0,
+                    forwardBoost = 10.0,
+                    cooldownMs = 1800
+                }
+            },
+            {
+                id = 'spring_02',
+                behavior = {
+                    bounceForce = 5.0,
+                    forwardBoost = 12.5,
+                    cooldownMs = 2000
+                }
+            }
         }
     },
     obstacles = {
