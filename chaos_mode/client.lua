@@ -211,8 +211,9 @@ end
 local function raycastFromCamera(maxDistance)
     local cameraCoord = GetGameplayCamCoord()
     local cameraDirection = getGameplayCameraDirection()
-    local rayEnd = cameraCoord + (cameraDirection * maxDistance)
-    local rayHandle = StartShapeTestRay(cameraCoord.x, cameraCoord.y, cameraCoord.z, rayEnd.x, rayEnd.y, rayEnd.z, 1 + 16 + 32, PlayerPedId(), 7)
+    local rayStart = cameraCoord + (cameraDirection * 0.35)
+    local rayEnd = rayStart + (cameraDirection * maxDistance)
+    local rayHandle = StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 1 + 16 + 32, PlayerPedId(), 7)
     local _, hit, endCoords, surfaceNormal = GetShapeTestResultIncludingMaterial(rayHandle)
 
     if hit == 1 then
@@ -225,10 +226,11 @@ end
 local function raycastEntityFromCamera(maxDistance)
     local cameraCoord = GetGameplayCamCoord()
     local cameraDirection = getGameplayCameraDirection()
-    local rayEnd = cameraCoord + (cameraDirection * maxDistance)
-    local rayHandle = StartShapeTestRay(cameraCoord.x, cameraCoord.y, cameraCoord.z, rayEnd.x, rayEnd.y, rayEnd.z, 511, PlayerPedId(), 7)
+    local rayStart = cameraCoord + (cameraDirection * 0.35)
+    local rayEnd = rayStart + (cameraDirection * maxDistance)
+    local rayHandle = StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 511, PlayerPedId(), 7)
     local _, hit, endCoords, _, entityHit = GetShapeTestResult(rayHandle)
-    if hit == 1 and entityHit and entityHit ~= 0 and DoesEntityExist(entityHit) then
+    if hit == 1 and entityHit and entityHit ~= 0 and entityHit ~= PlayerPedId() and DoesEntityExist(entityHit) then
         return true, entityHit, endCoords
     end
 
