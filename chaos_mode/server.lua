@@ -976,6 +976,8 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
 
     SetEntityHeading(object, heading)
     SetEntityRotation(object, pitch, roll, heading, 2, true)
+    SetEntityCollision(object, false, false)
+    SetEntityCompletelyDisableCollision(object, true, false)
 
     if placementMode == 'attach' then
         local attachTarget = getEntityFromNetId(attachData.targetNetId)
@@ -1009,7 +1011,7 @@ RegisterNetEvent('chaos_mode:placePropRequest', function(payload)
             attachData.rotation.z,
             false,
             false,
-            true,
+            false,
             false,
             2,
             true

@@ -19,6 +19,7 @@ local buildUiView = 'list'
 local sendBuildUiState
 local buildGhostEntity = 0
 local buildHeightOffset = 0.0
+local buildDistanceOffset = 0.0
 local buildAttachTargetNetId = 0
 local buildAttachTargetEntity = 0
 local buildAttachOffset = vec3(0.0, 0.0, 0.0)
@@ -213,7 +214,7 @@ local function raycastFromCamera(maxDistance)
     local cameraDirection = getGameplayCameraDirection()
     local rayStart = cameraCoord + (cameraDirection * 0.35)
     local rayEnd = rayStart + (cameraDirection * maxDistance)
-    local rayHandle = StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 1 + 16 + 32, PlayerPedId(), 7)
+    local rayHandle = StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 1, PlayerPedId(), 7)
     local _, hit, endCoords, surfaceNormal = GetShapeTestResultIncludingMaterial(rayHandle)
 
     if hit == 1 then
@@ -497,6 +498,7 @@ local function setBuildModeState(enabled)
         buildPlacementTransform.pitch = 0.0
         buildPlacementTransform.roll = 0.0
         buildHeightOffset = 0.0
+        buildDistanceOffset = 0.0
         buildPlacementMode = 'world'
         clearAttachTarget()
         buildPlacementValid = false
@@ -2761,9 +2763,9 @@ CreateThread(function()
             Wait(300)
         else
             local maxDistance = getBuildMaxPlaceDistance()
-            local rayHit, rayCoords, _, surfaceNormal = raycastFromCamera(maxDistance)
+            local rayHit, rayCoords, cameraDirection, surfaceNormal = raycastFromCamera(maxDistance)
             local playerCoords = GetEntityCoords(PlayerPedId())
-            local target = rayCoords
+            local target = rayCoords + (cameraDirection * buildDistanceOffset)
 
             if #(target - playerCoords) > maxDistance then
                 local dir = target - playerCoords
@@ -2789,13 +2791,11 @@ CreateThread(function()
             end
 
             if IsControlJustPressed(0, 15) then
-                buildHeightOffset = buildHeightOffset + buildGridStep
-                target = target + vec3(0.0, 0.0, buildGridStep)
+                buildDistanceOffset = math.min(maxDistance - 1.0, buildDistanceOffset + buildGridStep)
             end
 
             if IsControlJustPressed(0, 14) then
-                buildHeightOffset = buildHeightOffset - buildGridStep
-                target = target - vec3(0.0, 0.0, buildGridStep)
+                buildDistanceOffset = math.max(-maxDistance + 1.0, buildDistanceOffset - buildGridStep)
             end
 
             if IsControlJustPressed(0, 47) then
@@ -2923,12 +2923,13 @@ CreateThread(function()
                 end
             end
 
-            drawBuildHelpText(('Mode: %s | G grid:%s H align:%s | step %.2fm %.1f° | Arrows rotate | PgUp/PgDn Z | M switch | E select/place'):format(
+            drawBuildHelpText(('Mode: %s | G grid:%s H align:%s | step %.2fm %.1f° | Arrows rotate | Scroll dist %.2fm | M switch | E select/place'):format(
                 buildPlacementMode == 'attach' and 'ATTACH' or 'WORLD',
                 buildGridSnapEnabled and 'ON' or 'OFF',
                 buildSurfaceAlignEnabled and 'ON' or 'OFF',
                 buildGridStep,
-                buildRotationStep
+                buildRotationStep,
+                buildDistanceOffset
             ))
 
             if IsControlJustPressed(0, 177) then
